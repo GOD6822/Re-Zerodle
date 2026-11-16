@@ -1,0 +1,4475 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Re:Zerodle — Return by Deduction</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Cinzel for Royal Lugunica Headers, Inter for UI, JetBrains Mono for Code/Stats -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            royal: ['Cinzel', 'serif'],
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            obsidian: {
+              950: '#07060d',
+              900: '#0d0b16',
+              850: '#131020',
+              800: '#19152b',
+              700: '#241e3d',
+            },
+            amethyst: {
+              400: '#c084fc',
+              500: '#a855f7',
+              600: '#9333ea',
+              700: '#7e22ce',
+              900: '#3b0764',
+            },
+            royalGold: {
+              300: '#fde68a',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+            },
+            rbdCrimson: {
+              500: '#f43f5e',
+              600: '#e11d48',
+              700: '#be123c',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* Custom Witch's Tea Party & Royal Lugunica Aesthetics */
+    body {
+      background-color: #07060d;
+      background-image:
+        radial-gradient(circle at 15% 10%, rgba(126, 34, 206, 0.16) 0%, transparent 42%),
+        radial-gradient(circle at 85% 20%, rgba(217, 119, 6, 0.10) 0%, transparent 38%),
+        radial-gradient(circle at 50% 95%, rgba(190, 18, 60, 0.12) 0%, transparent 45%);
+      color: #f3f0ff;
+      min-height: 100vh;
+    }
+
+    /* Tile flip animation for Wordle comparison cells */
+    @keyframes tileFlipIn {
+      0% {
+        opacity: 0;
+        transform: perspective(600px) rotateX(-75deg) scale(0.94);
+      }
+      60% {
+        opacity: 1;
+        transform: perspective(600px) rotateX(10deg) scale(1.01);
+      }
+      100% {
+        opacity: 1;
+        transform: perspective(600px) rotateX(0deg) scale(1);
+      }
+    }
+
+    .animate-tile {
+      animation: tileFlipIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    /* Subtle Return by Death pulse */
+    @keyframes rbdPulse {
+      0%, 100% { box-shadow: 0 0 18px rgba(168, 85, 247, 0.25); }
+      50% { box-shadow: 0 0 28px rgba(225, 29, 72, 0.35); }
+    }
+
+    .rbd-glow {
+      animation: rbdPulse 4s ease-in-out infinite;
+    }
+
+    /* Custom sleek scrollbar for 9-column responsive table */
+    .royal-scroll::-webkit-scrollbar {
+      height: 8px;
+      width: 8px;
+    }
+    .royal-scroll::-webkit-scrollbar-track {
+      background: #0d0b16;
+      border-radius: 9999px;
+    }
+    .royal-scroll::-webkit-scrollbar-thumb {
+      background: #372d5c;
+      border-radius: 9999px;
+    }
+    .royal-scroll::-webkit-scrollbar-thumb:hover {
+      background: #6d28d9;
+    }
+
+    /* Wordle cell states */
+    .cell-match {
+      background: linear-gradient(145deg, rgba(6, 95, 70, 0.92), rgba(4, 120, 87, 0.85));
+      border-color: #34d399;
+      color: #ecfdf5;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 12px rgba(16, 185, 129, 0.18);
+    }
+    .cell-partial {
+      background: linear-gradient(145deg, rgba(146, 64, 14, 0.92), rgba(180, 83, 9, 0.85));
+      border-color: #fbbf24;
+      color: #fffbeb;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 12px rgba(245, 158, 11, 0.18);
+    }
+    .cell-none {
+      background: linear-gradient(145deg, rgba(25, 21, 43, 0.95), rgba(19, 16, 32, 0.95));
+      border-color: #2e274d;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased selection:bg-amethyst-600 selection:text-white">
+
+  <!-- Toast Notification Container (Replaces alert/confirm) -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- Main Wrapper -->
+  <div class="max-w-[1440px] mx-auto px-3 sm:px-6 py-4 sm:py-6">
+
+    <!-- Top Royal Header -->
+    <header class="bg-obsidian-900/90 border border-amethyst-700/40 rounded-2xl p-4 sm:p-6 mb-5 shadow-2xl backdrop-blur-md rbd-glow">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <!-- Brand & Crest -->
+        <div class="flex items-center gap-3.5">
+          <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amethyst-700 via-obsidian-800 to-rbdCrimson-700 border border-royalGold-400/60 flex items-center justify-center shadow-lg shrink-0">
+            <!-- Royal Dragon / Witch's Tea Party SVG Crest -->
+            <svg class="w-7 h-7 sm:w-8 sm:h-8 text-royalGold-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+              <circle cx="12" cy="12" r="3" class="text-amethyst-400" stroke="currentColor" />
+            </svg>
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h1 class="font-royal text-2xl sm:text-3xl font-extrabold tracking-wider bg-gradient-to-r from-royalGold-300 via-amethyst-400 to-rbdCrimson-500 bg-clip-text text-transparent">
+                RE:ZERODLE
+              </h1>
+              <span class="text-[11px] font-mono uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amethyst-900/80 border border-amethyst-500/40 text-amethyst-300">
+                126 Characters • Arcs 1–10
+              </span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+              Return by Deduction — Separate <span class="text-sky-300 font-medium">Magic</span>, <span class="text-amber-300 font-medium">Divine Protection</span> &amp; <span class="text-rose-300 font-medium">Authority</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Controls: Edition / Spoiler Scope & Portrait/Setup Buttons -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Edition / Spoiler Scope Selector -->
+          <div class="flex flex-col sm:flex-row sm:items-center gap-1.5 bg-obsidian-850 border border-obsidian-700 rounded-xl px-3 py-2">
+            <label for="edition-select" class="text-[11px] uppercase tracking-wider font-semibold text-royalGold-400 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              Spoiler Scope:
+            </label>
+            <select id="edition-select" class="bg-obsidian-900 text-slate-100 text-xs sm:text-sm font-medium rounded-lg px-2.5 py-1.5 border border-amethyst-700/50 focus:outline-none focus:border-royalGold-400 cursor-pointer">
+              <option value="anime">Anime Only (Arcs 1–5)</option>
+              <option value="ln1_6">LN: Arcs 1–6 (Pre-Vollachia)</option>
+              <option value="ln6">LN: Arc 6 Only (Hall of Memories)</option>
+              <option value="ln7_10">LN: Arcs 7–10 Only (Vollachia &amp; Beyond)</option>
+              <option value="full" selected>Full LN (Arcs 1–10)</option>
+            </select>
+          </div>
+
+          <!-- GitHub Portraits Setup Button -->
+          <button id="open-github-modal-btn" type="button" class="px-3.5 py-2.5 rounded-xl bg-obsidian-800 hover:bg-obsidian-700 border border-obsidian-700 hover:border-amethyst-500/60 text-xs sm:text-sm font-medium text-slate-200 flex items-center gap-2 transition">
+            <svg class="w-4 h-4 text-royalGold-400" fill="currentColor" viewBox="0 0 24 24">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+            </svg>
+            <span>Portraits &amp; Wiki</span>
+          </button>
+
+          <!-- How to Play / Legend Button -->
+          <button id="open-help-modal-btn" type="button" class="px-3.5 py-2.5 rounded-xl bg-amethyst-700/30 hover:bg-amethyst-700/50 border border-amethyst-500/40 text-xs sm:text-sm font-medium text-amethyst-200 flex items-center gap-1.5 transition">
+            <span>Rules</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (Game Modes + Codex) -->
+      <nav class="mt-4 pt-3.5 border-t border-obsidian-700/80 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center gap-2" id="mode-tabs">
+          <button data-mode="daily" class="mode-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-amethyst-600 text-white shadow-lg shadow-amethyst-900/50">
+            <span>Daily Classic</span>
+            <span id="daily-status-badge" class="text-[10px] px-1.5 py-0.5 rounded bg-obsidian-950/60 text-royalGold-300 font-mono">ACTIVE</span>
+          </button>
+
+          <button data-mode="unlimited" class="mode-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-obsidian-850 text-slate-300 border border-obsidian-700 hover:border-amethyst-500/50">
+            <span class="unlock-icon">🔒</span>
+            <span>Unlimited Wordle</span>
+          </button>
+
+          <button data-mode="quote" class="mode-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-obsidian-850 text-slate-300 border border-obsidian-700 hover:border-amethyst-500/50">
+            <span class="unlock-icon">🔒</span>
+            <span>Guess by Quote</span>
+          </button>
+
+          <button data-mode="image" class="mode-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-obsidian-850 text-slate-300 border border-obsidian-700 hover:border-amethyst-500/50">
+            <span class="unlock-icon">🔒</span>
+            <span>Guess by Image</span>
+          </button>
+
+          <button data-mode="codex" class="mode-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-obsidian-850 text-royalGold-300 border border-royalGold-500/30 hover:border-royalGold-400">
+            <span>Roster &amp; Quotes Codex</span>
+          </button>
+        </div>
+
+        <div class="text-xs text-slate-400 font-mono flex items-center gap-3">
+          <span>Pool: <strong id="active-pool-count" class="text-royalGold-300">126</strong> chars</span>
+          <span>•</span>
+          <span>Daily Streak: <strong id="daily-streak-count" class="text-emerald-400">0</strong></span>
+        </div>
+      </nav>
+    </header>
+
+    <!-- ===================================================================== -->
+    <!-- SECTION 1: WORDLE GAMEPLAY VIEW (DAILY CLASSIC & UNLIMITED WORDLE)    -->
+    <!-- ===================================================================== -->
+    <main id="view-wordle" class="space-y-5">
+      <!-- Mode Banner + Progressive Hints Card -->
+      <section class="bg-obsidian-900/90 border border-obsidian-700 rounded-2xl p-4 sm:p-5 shadow-xl">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-obsidian-700/70">
+          <div>
+            <div class="flex items-center gap-2.5">
+              <h2 id="wordle-mode-title" class="font-royal text-lg sm:text-xl font-bold text-royalGold-300">
+                Daily Classic Deduction
+              </h2>
+              <span id="wordle-date-pill" class="text-xs font-mono px-2.5 py-0.5 rounded-full bg-obsidian-800 border border-obsidian-700 text-slate-300"></span>
+            </div>
+            <p id="wordle-mode-subtitle" class="text-xs sm:text-sm text-slate-400 mt-0.5">
+              Deduce today's mystery character across 8 distinct attributes: Gender, Race, Camp, Hair, Magic, Divine Protection, Authority, and Debut Arc.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="new-unlimited-btn" type="button" class="hidden px-4 py-2 rounded-xl bg-gradient-to-r from-amethyst-600 to-rbdCrimson-600 hover:from-amethyst-500 hover:to-rbdCrimson-500 text-white text-xs sm:text-sm font-semibold shadow-lg transition">
+              ↻ New Random Target
+            </button>
+            <div class="px-3 py-1.5 rounded-xl bg-obsidian-850 border border-obsidian-700 text-xs font-mono text-slate-300">
+              Guesses: <span id="guess-counter" class="text-royalGold-400 font-bold">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progressive Hints Bar (Every 3 Incorrect Guesses) -->
+        <div class="mt-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+            <span class="text-xs font-semibold uppercase tracking-wider text-amethyst-300 flex items-center gap-1.5">
+              <span>🔮 Witch's Tea Party Hints</span>
+              <span id="next-hint-status" class="text-[11px] font-mono text-slate-400 font-normal">(Next hint at 3 wrong guesses)</span>
+            </span>
+            <div class="flex items-center gap-1.5 text-[11px] font-mono">
+              <span id="hint-pill-3" class="px-2 py-0.5 rounded-md bg-obsidian-850 border border-obsidian-700 text-slate-500">3: Quote</span>
+              <span id="hint-pill-6" class="px-2 py-0.5 rounded-md bg-obsidian-850 border border-obsidian-700 text-slate-500">6: Title &amp; Role</span>
+              <span id="hint-pill-9" class="px-2 py-0.5 rounded-md bg-obsidian-850 border border-obsidian-700 text-slate-500">9: Lore Clue</span>
+              <span id="hint-pill-12" class="px-2 py-0.5 rounded-md bg-obsidian-850 border border-obsidian-700 text-slate-500">12: Initials</span>
+            </div>
+          </div>
+
+          <div id="hints-display-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            <!-- Hint 1 (3 Wrong Guesses) -->
+            <div id="hint-box-3" class="rounded-xl bg-obsidian-850/90 border border-obsidian-700/80 p-3 text-xs">
+              <div class="font-semibold text-slate-400 mb-1 flex items-center justify-between">
+                <span>Tier I • Character Quote</span>
+                <span class="font-mono text-[10px]">3 Wrong</span>
+              </div>
+              <p id="hint-text-3" class="text-slate-500 italic">Locked — make 3 incorrect guesses to unlock.</p>
+            </div>
+            <!-- Hint 2 (6 Wrong Guesses) -->
+            <div id="hint-box-6" class="rounded-xl bg-obsidian-850/90 border border-obsidian-700/80 p-3 text-xs">
+              <div class="font-semibold text-slate-400 mb-1 flex items-center justify-between">
+                <span>Tier II • Epithet &amp; Role</span>
+                <span class="font-mono text-[10px]">6 Wrong</span>
+              </div>
+              <p id="hint-text-6" class="text-slate-500 italic">Locked — make 6 incorrect guesses to unlock.</p>
+            </div>
+            <!-- Hint 3 (9 Wrong Guesses) -->
+            <div id="hint-box-9" class="rounded-xl bg-obsidian-850/90 border border-obsidian-700/80 p-3 text-xs">
+              <div class="font-semibold text-slate-400 mb-1 flex items-center justify-between">
+                <span>Tier III • Lore Clue</span>
+                <span class="font-mono text-[10px]">9 Wrong</span>
+              </div>
+              <p id="hint-text-9" class="text-slate-500 italic">Locked — make 9 incorrect guesses to unlock.</p>
+            </div>
+            <!-- Hint 4 (12+ Wrong Guesses) -->
+            <div id="hint-box-12" class="rounded-xl bg-obsidian-850/90 border border-obsidian-700/80 p-3 text-xs">
+              <div class="font-semibold text-slate-400 mb-1 flex items-center justify-between">
+                <span>Tier IV • Initials &amp; Length</span>
+                <span class="font-mono text-[10px]">12+ Wrong</span>
+              </div>
+              <p id="hint-text-12" class="text-slate-500 italic">Locked — make 12 incorrect guesses to unlock.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Character Search & Autocomplete Input -->
+        <div id="wordle-input-area" class="mt-5 relative max-w-2xl mx-auto">
+          <div class="flex gap-2">
+            <div class="relative flex-1">
+              <input
+                id="wordle-search-input"
+                type="text"
+                autocomplete="off"
+                placeholder="Type a Re:Zero character name (e.g., Natsuki Subaru, Reinhard, Satella, Vincent)..."
+                class="w-full px-4 py-3.5 rounded-xl bg-obsidian-950 border border-amethyst-600/50 focus:border-royalGold-400 focus:outline-none text-sm sm:text-base text-white placeholder-slate-500 shadow-inner"
+              />
+              <!-- Autocomplete Dropdown -->
+              <div id="wordle-autocomplete" class="hidden absolute left-0 right-0 top-full mt-1.5 max-h-72 overflow-y-auto royal-scroll bg-obsidian-900 border border-amethyst-500/60 rounded-xl shadow-2xl z-30 divide-y divide-obsidian-800"></div>
+            </div>
+            <button id="wordle-submit-btn" type="button" class="px-5 py-3.5 rounded-xl bg-gradient-to-r from-royalGold-500 to-amber-600 hover:from-royalGold-400 hover:to-amber-500 text-obsidian-950 font-bold text-sm sm:text-base shadow-lg transition shrink-0">
+              Guess
+            </button>
+          </div>
+        </div>
+
+        <!-- Victory / Solved Banner (Hidden until target is guessed) -->
+        <div id="wordle-victory-card" class="hidden mt-5 rounded-2xl bg-gradient-to-br from-emerald-950/90 via-obsidian-900 to-amethyst-950/90 border border-emerald-400/60 p-5 shadow-2xl">
+          <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <canvas id="victory-portrait-canvas" width="76" height="76" class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 border-royalGold-400 shadow-lg shrink-0"></canvas>
+              <div>
+                <span class="text-xs font-mono uppercase tracking-widest text-emerald-300">✦ Destiny Fulfilled ✦</span>
+                <h3 id="victory-char-name" class="font-royal text-xl sm:text-2xl font-bold text-white mt-0.5"></h3>
+                <p id="victory-char-summary" class="text-xs sm:text-sm text-slate-300 mt-1"></p>
+                <div id="victory-power-pills" class="flex flex-wrap gap-1.5 mt-2"></div>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+              <button id="share-results-btn" type="button" class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-obsidian-950 font-bold text-xs sm:text-sm shadow-lg transition flex items-center gap-2">
+                <span>📋 Share 8-Attribute Grid</span>
+              </button>
+              <button id="victory-next-mode-btn" type="button" class="px-4 py-2.5 rounded-xl bg-amethyst-600 hover:bg-amethyst-500 text-white font-semibold text-xs sm:text-sm shadow-lg transition">
+                Play Unlimited / Bonus Modes →
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 9-COLUMN WORDLE COMPARISON TABLE -->
+      <section class="bg-obsidian-900/90 border border-obsidian-700 rounded-2xl p-3 sm:p-5 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2 text-xs text-slate-400">
+            <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-600 border border-emerald-400 inline-block"></span> Exact</span>
+            <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-600 border border-amber-400 inline-block"></span> Partial / Element / Has Power / ▲▼</span>
+            <span class="inline-flex items-center gap-1"><span class="w-3 h-3 rounded bg-obsidian-800 border border-obsidian-600 inline-block"></span> No Match</span>
+          </div>
+          <span class="text-[11px] text-slate-400 sm:hidden">← Swipe table horizontally →</span>
+        </div>
+
+        <div class="overflow-x-auto royal-scroll pb-2">
+          <table class="w-full min-w-[1060px] border-separate border-spacing-1.5 text-center">
+            <thead>
+              <tr class="text-[11px] uppercase tracking-wider font-bold text-royalGold-300">
+                <th class="bg-obsidian-850 border border-obsidian-700 rounded-xl py-2.5 px-2 w-[15%]">1. Character</th>
+                <th class="bg-obsidian-850 border border-obsidian-700 rounded-xl py-2.5 px-2 w-[9%]">2. Gender</th>
+                <th class="bg-obsidian-850 border border-obsidian-700 rounded-xl py-2.5 px-2 w-[11%]">3. Race</th>
+                <th class="bg-obsidian-850 border border-obsidian-700 rounded-xl py-2.5 px-2 w-[12%]">4. Camp</th>
+                <th class="bg-obsidian-850 border border-obsidian-700 rounded-xl py-2.5 px-2 w-[8%]">5. Hair</th>
+                <th class="bg-obsidian-850 border border-sky-500/40 text-sky-300 rounded-xl py-2.5 px-2 w-[13%]">6. Magic</th>
+                <th class="bg-obsidian-850 border border-amber-500/40 text-amber-300 rounded-xl py-2.5 px-2 w-[13%]">7. Divine Protection</th>
+                <th class="bg-obsidian-850 border border-rose-500/40 text-rose-300 rounded-xl py-2.5 px-2 w-[12%]">8. Authority</th>
+                <th class="bg-obsidian-850 border border-obsidian-700 rounded-xl py-2.5 px-2 w-[7%]">9. Debut</th>
+              </tr>
+            </thead>
+            <tbody id="wordle-guesses-tbody">
+              <!-- Guess rows injected dynamically -->
+            </tbody>
+          </table>
+          <div id="wordle-empty-state" class="text-center py-10 text-slate-500 text-sm">
+            Select any character above to begin your deduction. Each row compares all 8 attributes!
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- SECTION 2: GUESS BY QUOTE MODE (UNLOCKED AFTER DAILY CLASSIC)         -->
+    <!-- ===================================================================== -->
+    <section id="view-quote" class="hidden space-y-5">
+      <div class="bg-obsidian-900/90 border border-amethyst-600/40 rounded-2xl p-5 sm:p-7 shadow-xl max-w-4xl mx-auto">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-obsidian-700">
+          <div>
+            <span class="text-xs font-mono uppercase tracking-widest text-amethyst-400">Bonus Trial I • 100-Quote Archive</span>
+            <h2 class="font-royal text-xl sm:text-2xl font-bold text-royalGold-300">Guess Who Spoke This Quote</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="quote-toggle-context-btn" type="button" class="px-3 py-2 rounded-xl bg-obsidian-800 hover:bg-obsidian-700 border border-obsidian-700 text-xs text-slate-300">
+              Show Scene Context
+            </button>
+            <button id="quote-next-btn" type="button" class="px-4 py-2 rounded-xl bg-amethyst-600 hover:bg-amethyst-500 text-white text-xs sm:text-sm font-semibold transition">
+              ↻ Next Quote
+            </button>
+          </div>
+        </div>
+
+        <!-- Quote Display Box -->
+        <div class="my-6 p-6 rounded-2xl bg-gradient-to-br from-obsidian-850 to-obsidian-950 border border-royalGold-500/30 relative">
+          <div class="text-4xl font-royal text-royalGold-500/40 absolute top-3 left-4">“</div>
+          <blockquote id="quote-challenge-text" class="text-base sm:text-xl font-medium text-slate-100 text-center italic px-4 leading-relaxed"></blockquote>
+          <div class="text-4xl font-royal text-royalGold-500/40 absolute bottom-1 right-4">”</div>
+          <p id="quote-challenge-context" class="hidden mt-3 text-center text-xs font-mono text-amethyst-300"></p>
+        </div>
+
+        <!-- Quote Search Input -->
+        <div id="quote-input-wrapper" class="relative max-w-xl mx-auto">
+          <div class="flex gap-2">
+            <div class="relative flex-1">
+              <input id="quote-search-input" type="text" autocomplete="off" placeholder="Who said this? Type character name..." class="w-full px-4 py-3 rounded-xl bg-obsidian-950 border border-amethyst-600/50 focus:border-royalGold-400 focus:outline-none text-sm text-white" />
+              <div id="quote-autocomplete" class="hidden absolute left-0 right-0 top-full mt-1.5 max-h-60 overflow-y-auto royal-scroll bg-obsidian-900 border border-amethyst-500/60 rounded-xl shadow-2xl z-30 divide-y divide-obsidian-800"></div>
+            </div>
+            <button id="quote-submit-btn" type="button" class="px-5 py-3 rounded-xl bg-royalGold-500 hover:bg-royalGold-400 text-obsidian-950 font-bold text-sm transition">
+              Submit
+            </button>
+          </div>
+        </div>
+
+        <!-- Quote Result & Guesses List -->
+        <div id="quote-result-banner" class="hidden mt-5 p-4 rounded-xl bg-emerald-950/80 border border-emerald-400/60 text-center"></div>
+        <div id="quote-guesses-list" class="mt-5 space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SECTION 3: GUESS BY IMAGE MODE (HTML5 CANVAS DE-ZOOM & DE-PIXELATE)   -->
+    <!-- ===================================================================== -->
+    <section id="view-image" class="hidden space-y-5">
+      <div class="bg-obsidian-900/90 border border-amethyst-600/40 rounded-2xl p-5 sm:p-7 shadow-xl max-w-4xl mx-auto">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-obsidian-700">
+          <div>
+            <span class="text-xs font-mono uppercase tracking-widest text-rose-400">Bonus Trial II • Clairvoyance Canvas</span>
+            <h2 class="font-royal text-xl sm:text-2xl font-bold text-royalGold-300">Guess by Image (Progressive De-Zoom &amp; De-Pixelation)</h2>
+          </div>
+          <button id="image-next-btn" type="button" class="px-4 py-2 rounded-xl bg-amethyst-600 hover:bg-amethyst-500 text-white text-xs sm:text-sm font-semibold transition">
+            ↻ Next Portrait
+          </button>
+        </div>
+
+        <div class="mt-6 flex flex-col items-center">
+          <!-- HTML5 Canvas for Progressive De-Zooming & De-Pixelation -->
+          <div class="p-2 rounded-2xl bg-obsidian-950 border-2 border-royalGold-400/50 shadow-2xl">
+            <canvas id="image-challenge-canvas" width="260" height="260" class="w-56 h-56 sm:w-64 sm:h-64 rounded-xl block"></canvas>
+          </div>
+
+          <div class="mt-3 flex items-center gap-4 text-xs font-mono text-slate-400">
+            <span>Zoom: <strong id="image-zoom-label" class="text-royalGold-300">3.2x</strong></span>
+            <span>•</span>
+            <span>Pixel Block: <strong id="image-pixel-label" class="text-amethyst-300">24px</strong></span>
+            <span>•</span>
+            <span>Wrong Guesses: <strong id="image-wrong-label" class="text-rose-400">0</strong></span>
+          </div>
+
+          <!-- Image Search Input -->
+          <div id="image-input-wrapper" class="relative w-full max-w-xl mt-5">
+            <div class="flex gap-2">
+              <div class="relative flex-1">
+                <input id="image-search-input" type="text" autocomplete="off" placeholder="Identify the character in the portrait..." class="w-full px-4 py-3 rounded-xl bg-obsidian-950 border border-amethyst-600/50 focus:border-royalGold-400 focus:outline-none text-sm text-white" />
+                <div id="image-autocomplete" class="hidden absolute left-0 right-0 top-full mt-1.5 max-h-60 overflow-y-auto royal-scroll bg-obsidian-900 border border-amethyst-500/60 rounded-xl shadow-2xl z-30 divide-y divide-obsidian-800"></div>
+              </div>
+              <button id="image-submit-btn" type="button" class="px-5 py-3 rounded-xl bg-royalGold-500 hover:bg-royalGold-400 text-obsidian-950 font-bold text-sm transition">
+                Identify
+              </button>
+            </div>
+          </div>
+
+          <div id="image-result-banner" class="hidden mt-5 w-full max-w-xl p-4 rounded-xl bg-emerald-950/80 border border-emerald-400/60 text-center"></div>
+          <div id="image-guesses-list" class="mt-4 w-full max-w-xl flex flex-wrap justify-center gap-2"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SECTION 4: ROSTER & QUOTES CODEX (SEARCHABLE BY MAGIC/DP/AUTHORITY)   -->
+    <!-- ===================================================================== -->
+    <section id="view-codex" class="hidden space-y-5">
+      <div class="bg-obsidian-900/90 border border-royalGold-500/30 rounded-2xl p-4 sm:p-6 shadow-xl">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-obsidian-700">
+          <div>
+            <h2 class="font-royal text-xl sm:text-2xl font-bold text-royalGold-300">Royal Lugunica Codex</h2>
+            <p class="text-xs sm:text-sm text-slate-400">
+              Browse all 126 characters with separated <span class="text-sky-300">Magic</span>, <span class="text-amber-300">Divine Protection</span>, and <span class="text-rose-300">Authority</span> attributes, plus all 100 quotes across Arcs 1–10.
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <button id="codex-tab-roster" type="button" class="px-4 py-2 rounded-xl bg-royalGold-500 text-obsidian-950 font-bold text-xs sm:text-sm transition">
+              Characters (<span id="codex-char-count">126</span>)
+            </button>
+            <button id="codex-tab-quotes" type="button" class="px-4 py-2 rounded-xl bg-obsidian-800 text-slate-300 border border-obsidian-700 font-semibold text-xs sm:text-sm transition">
+              Quotes (<span id="codex-quote-count">100</span>)
+            </button>
+          </div>
+        </div>
+
+        <!-- Codex Filters -->
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <input
+              id="codex-search-input"
+              type="text"
+              placeholder="Search by Name, Magic (e.g. Yin, Soul Marriage, Shinobi), Divine Protection (e.g. Sword Saint, Telepathy), Authority (e.g. Gluttony, Melancholy), Camp, or Quote..."
+              class="w-full px-4 py-2.5 rounded-xl bg-obsidian-950 border border-obsidian-700 focus:border-royalGold-400 focus:outline-none text-xs sm:text-sm text-white"
+            />
+          </div>
+          <div>
+            <select id="codex-arc-filter" class="w-full px-3.5 py-2.5 rounded-xl bg-obsidian-950 border border-obsidian-700 focus:border-royalGold-400 focus:outline-none text-xs sm:text-sm text-slate-200">
+              <option value="all">All Debut Arcs (1–10)</option>
+              <option value="1">Arc 1: Royal Capital</option>
+              <option value="2">Arc 2: Roswaal's Mansion</option>
+              <option value="3">Arc 3: Royal Selection &amp; White Whale</option>
+              <option value="4">Arc 4: Sanctuary &amp; Witch's Tea Party</option>
+              <option value="5">Arc 5: Priestella, Watergate City</option>
+              <option value="6">Arc 6: Pleiades Watchtower</option>
+              <option value="7">Arc 7: Vollachia Empire</option>
+              <option value="8">Arc 8: Great Disaster</option>
+              <option value="9">Arc 9: Watchtower Return</option>
+              <option value="10">Arc 10: Lugunica Succession</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Roster Cards Grid -->
+        <div id="codex-roster-grid" class="mt-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5"></div>
+
+        <!-- Quotes Archive List -->
+        <div id="codex-quotes-list" class="hidden mt-5 grid grid-cols-1 md:grid-cols-2 gap-3.5"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL 1: GITHUB PORTRAITS & WIKI SETUP MODAL                            -->
+  <!-- ======================================================================= -->
+  <div id="github-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-obsidian-900 border border-amethyst-500/50 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto royal-scroll p-5 sm:p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-obsidian-700">
+        <h3 class="font-royal text-lg sm:text-xl font-bold text-royalGold-300">Static Repo Portraits &amp; GitHub Actions Sync</h3>
+        <button id="close-github-modal-btn" type="button" class="p-1.5 rounded-lg bg-obsidian-800 hover:bg-obsidian-700 text-slate-300">✕</button>
+      </div>
+
+      <div class="mt-4 space-y-4 text-xs sm:text-sm text-slate-300">
+        <div class="p-3.5 rounded-xl bg-obsidian-850 border border-obsidian-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <p class="font-semibold text-white">Portrait Source Status: <span id="portrait-source-status" class="text-amber-300 font-mono">Procedural Royal Crests (Fallback Active)</span></p>
+            <p class="text-xs text-slate-400 mt-0.5">Automatically loads <code class="text-amethyst-300">./portraits/manifest.json</code> when hosted, with optional live Fandom Wiki thumbnail fallback.</p>
+          </div>
+          <label class="inline-flex items-center gap-2 cursor-pointer shrink-0 bg-obsidian-900 px-3 py-2 rounded-xl border border-obsidian-700">
+            <input id="wiki-fallback-toggle" type="checkbox" class="accent-amethyst-500 w-4 h-4" />
+            <span class="text-xs font-medium text-slate-200">Live Wiki Fallback</span>
+          </label>
+        </div>
+
+        <div>
+          <h4 class="font-semibold text-royalGold-300 mb-1">1. Repository Setup Instructions</h4>
+          <ol class="list-decimal list-inside space-y-1 text-slate-300 text-xs">
+            <li>Place this single <code class="text-amethyst-300">index.html</code> file in the root of your GitHub repository and enable <strong>GitHub Pages</strong>.</li>
+            <li>Create <code class="text-amethyst-300">.github/workflows/sync-portraits.yml</code> with the workflow below.</li>
+            <li>Run the workflow once from the <strong>Actions</strong> tab — it will fetch portraits and generate <code class="text-amethyst-300">./portraits/manifest.json</code> automatically.</li>
+          </ol>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <h4 class="font-semibold text-royalGold-300">2. <code class="text-amethyst-300">.github/workflows/sync-portraits.yml</code></h4>
+            <button id="copy-yaml-btn" type="button" class="px-3 py-1 rounded-lg bg-amethyst-600 hover:bg-amethyst-500 text-white text-xs font-semibold transition">
+              📋 Copy YAML
+            </button>
+          </div>
+          <pre id="github-workflow-yaml" class="p-3.5 rounded-xl bg-obsidian-950 border border-obsidian-700 font-mono text-[11px] text-emerald-300 overflow-x-auto royal-scroll leading-relaxed">name: Sync Re:Zerodle Character Portraits
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'
+
+permissions:
+  contents: write
+
+jobs:
+  sync-portraits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Fetch Portraits & Build Manifest
+        run: |
+          python - &lt;&lt; 'EOF'
+          import json, os, re, urllib.request, urllib.parse
+
+          os.makedirs("portraits", exist_ok=True)
+          with open("index.html", "r", encoding="utf-8") as f:
+              html = f.read()
+
+          slugs = sorted(set(re.findall(r'wikiSlug:\s*"([^"]+)"', html)))
+          manifest = {}
+
+          for slug in slugs:
+              api = f"https://rezero.fandom.com/api.php?action=query&amp;titles={urllib.parse.quote(slug)}&amp;prop=pageimages&amp;format=json&amp;pithumbsize=300"
+              try:
+                  req = urllib.request.Request(api, headers={"User-Agent": "ReZerodle-Sync/1.0"})
+                  with urllib.request.urlopen(req, timeout=10) as resp:
+                      data = json.loads(resp.read().decode())
+                      pages = data.get("query", {}).get("pages", {})
+                      for page in pages.values():
+                          src = page.get("thumbnail", {}).get("source")
+                          if src:
+                              ext = ".png" if ".png" in src.lower() else ".jpg"
+                              filename = f"{slug}{ext}"
+                              filepath = os.path.join("portraits", filename)
+                              urllib.request.urlretrieve(src, filepath)
+                              manifest[slug] = f"./portraits/{filename}"
+              except Exception as e:
+                  print(f"Skipped {slug}: {e}")
+
+          with open("portraits/manifest.json", "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2)
+          print(f"Synced {len(manifest)} portraits.")
+          EOF
+
+      - name: Commit Portraits Manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add portraits/
+          git diff --staged --quiet || git commit -m "chore: sync Re:Zerodle character portraits"
+          git push</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL 2: HOW TO PLAY / COLOR LEGEND MODAL                               -->
+  <!-- ======================================================================= -->
+  <div id="help-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-obsidian-900 border border-royalGold-500/40 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto royal-scroll p-5 sm:p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-obsidian-700">
+        <h3 class="font-royal text-lg sm:text-xl font-bold text-royalGold-300">Rules of Deduction (9-Column Grid)</h3>
+        <button id="close-help-modal-btn" type="button" class="p-1.5 rounded-lg bg-obsidian-800 hover:bg-obsidian-700 text-slate-300">✕</button>
+      </div>
+
+      <div class="mt-4 space-y-3 text-xs sm:text-sm text-slate-300">
+        <p>Guess the secret Re:Zero character from the active <strong>Spoiler Scope</strong>. Each guess evaluates <strong>8 distinct attributes</strong> across 9 columns:</p>
+        <ul class="space-y-2">
+          <li class="p-2.5 rounded-xl bg-obsidian-850 border border-obsidian-700">
+            <strong class="text-sky-300">6. Magic:</strong> <span class="text-emerald-400 font-semibold">Green</span> if exact. <span class="text-amber-400 font-semibold">Yellow</span> if both wield magic and share an element or style (<em>Fire, Water, Earth, Wind, Yin, Yang, Spirit Arts, Shinobi Arts, Curse, Soul Marriage, All Six Elements</em>). <span class="text-slate-400 font-semibold">Gray</span> otherwise.
+          </li>
+          <li class="p-2.5 rounded-xl bg-obsidian-850 border border-obsidian-700">
+            <strong class="text-amber-300">7. Divine Protection:</strong> <span class="text-emerald-400 font-semibold">Green</span> if exact (including <em>None === None</em>). <span class="text-amber-400 font-semibold">Yellow</span> if both possess a Divine Protection (≠ None). <span class="text-slate-400 font-semibold">Gray</span> if only one has a Divine Protection.
+          </li>
+          <li class="p-2.5 rounded-xl bg-obsidian-850 border border-obsidian-700">
+            <strong class="text-rose-300">8. Authority:</strong> <span class="text-emerald-400 font-semibold">Green</span> if exact (including <em>None === None</em>). <span class="text-amber-400 font-semibold">Yellow</span> if both possess an Authority (≠ None). <span class="text-slate-400 font-semibold">Gray</span> if only one has an Authority.
+          </li>
+          <li class="p-2.5 rounded-xl bg-obsidian-850 border border-obsidian-700">
+            <strong class="text-royalGold-300">9. Debut Arc:</strong> <span class="text-emerald-400 font-semibold">Green</span> if exact. <span class="text-amber-400 font-semibold">Yellow ▲</span> if the target debuted in a <em>later</em> arc; <span class="text-amber-400 font-semibold">Yellow ▼</span> if the target debuted in an <em>earlier</em> arc.
+          </li>
+        </ul>
+        <p class="text-xs text-amethyst-300 pt-1">
+          Solving today's <strong>Daily Classic</strong> unlocks <strong>Unlimited Wordle</strong>, <strong>Guess by Quote</strong>, and <strong>Guess by Image</strong>!
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- APPLICATION JAVASCRIPT (126 CHARACTERS + 100 QUOTES + FULL ENGINE)      -->
+  <!-- ======================================================================= -->
+  <script>
+    /**
+     * =========================================================================
+     * 1. COMPLETE 126-CHARACTER RE:ZERO DATABASE (ARCS 1–10)
+     *    Every character has separate: magic, divineProtection, authority
+     * =========================================================================
+     */
+    const CHARACTERS = [
+      // ==================== ARC 1: ROYAL CAPITAL (11) ====================
+      {
+        id: 1,
+        name: "Natsuki Subaru",
+        aliases: ["Subaru", "Barusu", "Natsumi Schwartz", "Lolimancer"],
+        gender: "Male",
+        race: "Human",
+        camp: "Emilia Camp",
+        hair: "Black",
+        magic: "Yin (Broken Gate)",
+        divineProtection: "None",
+        authority: "Envy / Sloth / Greed",
+        debutArc: 1,
+        title: "Silver-Haired Half-Elf's Knight / Spirit Knight",
+        role: "Tactician, Whip Wielder & Return by Death Looper",
+        lore: "Summoned from modern Japan outside a convenience store; bears the Witch's Scent and shattered his own mana gate.",
+        wikiSlug: "Natsuki_Subaru"
+      },
+      {
+        id: 2,
+        name: "Emilia",
+        aliases: ["Satella (Alias)", "Lia"],
+        gender: "Female",
+        race: "Half-Elf",
+        camp: "Emilia Camp",
+        hair: "Silver",
+        magic: "Fire / Spirit Arts",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 1,
+        title: "Royal Candidate & Witch of Glaciation",
+        role: "Master Spirit Arts User & Ice Brand Artes Combatant",
+        lore: "Raised in Elior Forest before being frozen in ice for a century; seeks the throne to thaw her frozen kin.",
+        wikiSlug: "Emilia"
+      },
+      {
+        id: 3,
+        name: "Puck",
+        aliases: ["Beast of the End"],
+        gender: "Male",
+        race: "Great Spirit",
+        camp: "Emilia Camp",
+        hair: "Gray",
+        magic: "Fire (Great Spirit)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 1,
+        title: "Great Spirit of Fire & Beast of the End",
+        role: "Contracted Great Spirit & Thermal Manipulation",
+        lore: "Created by Echidna four hundred years ago with strict vows governing his protection of his 'daughter'.",
+        wikiSlug: "Puck"
+      },
+      {
+        id: 4,
+        name: "Felt",
+        aliases: ["Filore Lugunica"],
+        gender: "Female",
+        race: "Human",
+        camp: "Felt Camp",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "Wind Blessing",
+        authority: "None",
+        debutArc: 1,
+        title: "Fifth Royal Candidate & Slums Thief",
+        role: "High-Speed Agile Striker & Reluctant Leader",
+        lore: "Grew up in the Royal Capital slums with Old Man Rom until a stolen insignia glowed in her hands.",
+        wikiSlug: "Felt"
+      },
+      {
+        id: 5,
+        name: "Reinhard van Astrea",
+        aliases: ["Reinhard", "Sword Saint"],
+        gender: "Male",
+        race: "Human",
+        camp: "Felt Camp",
+        hair: "Red",
+        magic: "None (Defective Gate)",
+        divineProtection: "Sword Saint / Many",
+        authority: "None",
+        debutArc: 1,
+        title: "Current Sword Saint & Knight Among Knights",
+        role: "Unrivaled Vanguard & Dragon Sword Reid Wielder",
+        lore: "Possesses an astronomical collection of Blessings granted by Od Lagna, yet cannot cast conventional spells.",
+        wikiSlug: "Reinhard_van_Astrea"
+      },
+      {
+        id: 6,
+        name: "Elsa Granhiert",
+        aliases: ["Bowel Hunter"],
+        gender: "Female",
+        race: "Vampire",
+        camp: "Independent / Neutral",
+        hair: "Black",
+        magic: "Curse (Vampiric Regeneration)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 1,
+        title: "Bowel Hunter of Gusteko",
+        role: "Dual-Kukri Assassin & Undying Cursed Doll",
+        lore: "Born in freezing Gusteko; discovered a twisted fascination with the warmth of living entrails.",
+        wikiSlug: "Elsa_Granhiert"
+      },
+      {
+        id: 7,
+        name: "Old Man Rom",
+        aliases: ["Rom", "Valga Cromwell"],
+        gender: "Male",
+        race: "Giant",
+        camp: "Felt Camp",
+        hair: "White",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 1,
+        title: "Loot House Keeper & Former Demi-Human General",
+        role: "Heavy Club Brawler & Felt's Guardian",
+        lore: "Fought alongside Sphinx during the Demi-Human War decades before adopting a blonde orphan in the slums.",
+        wikiSlug: "Valga_Cromwell"
+      },
+      {
+        id: 8,
+        name: "Kadomon Risch",
+        aliases: ["Appa Man", "Kadomon"],
+        gender: "Male",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Red",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 1,
+        title: "Royal Capital Appa Merchant",
+        role: "Fruit Vendor & First Friendly Face",
+        lore: "Muscular, scarred merchant who runs a fruit stall near the fountain plaza with his wife Raksha and daughter Plum.",
+        wikiSlug: "Kadomon_Risch"
+      },
+      {
+        id: 9,
+        name: "Rachins Hoffman",
+        aliases: ["Rachins"],
+        gender: "Male",
+        race: "Human",
+        camp: "Felt Camp",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 1,
+        title: "Slums Trio Leader & Felt Retainer",
+        role: "Street Brawler & Scout",
+        lore: "One of the three alley thugs who mugged Subaru on his first day, later recruited into Felt's household.",
+        wikiSlug: "Rachins_Hoffman"
+      },
+      {
+        id: 10,
+        name: "Gaston",
+        aliases: ["Ton"],
+        gender: "Male",
+        race: "Human",
+        camp: "Felt Camp",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 1,
+        title: "Slums Trio Muscle & Felt Retainer",
+        role: "Heavy Vanguard & Guard",
+        lore: "The largest member of the 'Ton-Chin-Kan' trio who turned over a new leaf serving under Felt and Reinhard.",
+        wikiSlug: "Gaston"
+      },
+      {
+        id: 11,
+        name: "Camberley",
+        aliases: ["Kan"],
+        gender: "Male",
+        race: "Human",
+        camp: "Felt Camp",
+        hair: "Black",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 1,
+        title: "Slums Trio Blade & Felt Retainer",
+        role: "Knife Fighter & Messenger",
+        lore: "The sharp-tongued third member of the Capital alley trio who joined Felt's estate staff.",
+        wikiSlug: "Camberley"
+      },
+
+      // ==================== ARC 2: ROSWAAL'S MANSION (11) ====================
+      {
+        id: 12,
+        name: "Rem",
+        aliases: ["Oni Maid"],
+        gender: "Female",
+        race: "Oni",
+        camp: "Emilia Camp",
+        hair: "Blue",
+        magic: "Water",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 2,
+        title: "Devoted Oni Maid of Roswaal Manor",
+        role: "Morningstar Berserker & Healing Specialist",
+        lore: "Born as the younger twin of a horned clan; her 'From Zero' speech saved Subaru from total despair.",
+        wikiSlug: "Rem"
+      },
+      {
+        id: 13,
+        name: "Ram",
+        aliases: ["Nee-sama", "Hornless Oni"],
+        gender: "Female",
+        race: "Oni",
+        camp: "Emilia Camp",
+        hair: "Pink",
+        magic: "Wind",
+        divineProtection: "Clairvoyance",
+        authority: "None",
+        debutArc: 2,
+        title: "Reincarnated Oni Prodigy & Head Maid",
+        role: "Wind Cutter Caster & Clairvoyant Strategist",
+        lore: "Lost her single horn during a Witch Cult raid, requiring daily mana transfusions to sustain her immense latent power.",
+        wikiSlug: "Ram"
+      },
+      {
+        id: 14,
+        name: "Beatrice",
+        aliases: ["Beako", "Librarian"],
+        gender: "Female",
+        race: "Great Spirit",
+        camp: "Emilia Camp",
+        hair: "Blonde",
+        magic: "Yin (Great Spirit)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 2,
+        title: "Guardian of the Forbidden Library",
+        role: "Space-Time Yin Sorceress & Subaru's Contracted Spirit",
+        lore: "Waited four hundred years in a door-crossing library for 'That Person' until Subaru took her hand.",
+        wikiSlug: "Beatrice"
+      },
+      {
+        id: 15,
+        name: "Roswaal L. Mathers",
+        aliases: ["Roswaal", "Margrave", "Clown"],
+        gender: "Male",
+        race: "Human",
+        camp: "Emilia Camp",
+        hair: "Blue",
+        magic: "All Six Elements",
+        divineProtection: "Sorcery",
+        authority: "None",
+        debutArc: 2,
+        title: "Margrave of the Mathers Domain & Court Mage",
+        role: "Supreme Aerial Artillery & Multi-Element Archmage",
+        lore: "Extends his life across generations by possessing his own descendants in pursuit of his teacher's revival.",
+        wikiSlug: "Roswaal_L_Mathers"
+      },
+      {
+        id: 16,
+        name: "Frederica Baumann",
+        aliases: ["Frederica"],
+        gender: "Female",
+        race: "Demi-Human (Leopard)",
+        camp: "Emilia Camp",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 2,
+        title: "Senior Maid of the Mathers Household",
+        role: "Beast-Shift Claw Fighter & Estate Manager",
+        lore: "Half-sister to Garfiel Tinzel who left Sanctuary years prior to pave a path for Demi-Humans in society.",
+        wikiSlug: "Frederica_Baumann"
+      },
+      {
+        id: 17,
+        name: "Petra Leyte",
+        aliases: ["Petra"],
+        gender: "Female",
+        race: "Human",
+        camp: "Emilia Camp",
+        hair: "Orange",
+        magic: "Yin",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 2,
+        title: "Irlam Village Seamstress & Apprentice Maid",
+        role: "Support Maid & Emerging Yin Magic User",
+        lore: "Bright-eyed village girl who aspired to become a Royal Capital seamstress before joining Roswaal's staff.",
+        wikiSlug: "Petra_Leyte"
+      },
+      {
+        id: 18,
+        name: "Meili Portroute",
+        aliases: ["Meili", "Mabeast Tamer"],
+        gender: "Female",
+        race: "Human",
+        camp: "Emilia Camp",
+        hair: "Blue",
+        magic: "None",
+        divineProtection: "Mabeast Manipulation",
+        authority: "None",
+        debutArc: 2,
+        title: "Former Assassin & Mabeast Tamer",
+        role: "Mabeast Swarm Commander",
+        lore: "Raised by 'Mother' alongside Elsa Granhiert; later reformed under the care of Subaru and Beatrice.",
+        wikiSlug: "Meili_Portroute"
+      },
+      {
+        id: 19,
+        name: "Mildred",
+        aliases: ["Irlam Villager"],
+        gender: "Female",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 2,
+        title: "Irlam Village Elder's Wife",
+        role: "Civilian Villager",
+        lore: "Warm-hearted resident of Irlam Village who welcomes Subaru during his morning radio calisthenics.",
+        wikiSlug: "Mildred"
+      },
+      {
+        id: 20,
+        name: "Lucas",
+        aliases: ["Irlam Boy"],
+        gender: "Male",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 2,
+        title: "Irlam Village Kid",
+        role: "Civilian Child",
+        lore: "One of Petra's childhood friends in Irlam Village who got bitten by a Wolgarm puppy in the forest.",
+        wikiSlug: "Lucas"
+      },
+      {
+        id: 21,
+        name: "Cain",
+        aliases: ["Irlam Kid"],
+        gender: "Male",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Black",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 2,
+        title: "Irlam Village Kid",
+        role: "Civilian Child",
+        lore: "Young boy from Irlam Village rescued by Subaru and Rem during the Mabeast forest incident.",
+        wikiSlug: "Cain"
+      },
+      {
+        id: 22,
+        name: "Hanna",
+        aliases: ["Irlam Girl"],
+        gender: "Female",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 2,
+        title: "Irlam Village Kid",
+        role: "Civilian Child",
+        lore: "Petra's close friend in Irlam Village who frequently participates in Subaru's morning exercises.",
+        wikiSlug: "Hanna"
+      },
+
+      // ==================== ARC 3: ROYAL SELECTION & WHITE WHALE (26) ====================
+      {
+        id: 23,
+        name: "Crusch Karsten",
+        aliases: ["Crusch", "Valkyrie"],
+        gender: "Female",
+        race: "Human",
+        camp: "Crusch Camp",
+        hair: "Green",
+        magic: "Wind",
+        divineProtection: "Wind Reading",
+        authority: "None",
+        debutArc: 3,
+        title: "Duchess of Karsten & Royal Candidate",
+        role: "Hundred-Man-Blow Swordswoman & Lie Detector",
+        lore: "Seeks to sever Lugunica's reliance on the Divine Dragon Volcanica; lost her memories to Gluttony.",
+        wikiSlug: "Crusch_Karsten"
+      },
+      {
+        id: 24,
+        name: "Ferris",
+        aliases: ["Felix Argyle", "Blue"],
+        gender: "Male",
+        race: "Demi-Human (Cat)",
+        camp: "Crusch Camp",
+        hair: "Brown",
+        magic: "Water",
+        divineProtection: "Water Magic",
+        authority: "None",
+        debutArc: 3,
+        title: "Color Title 'Blue' & Continent's Greatest Healer",
+        role: "Supreme Water Healer & Crusch's Knight",
+        lore: "Rescued from a locked basement by Crusch Karsten, dedicating his life and peerless healing arts to her.",
+        wikiSlug: "Ferris"
+      },
+      {
+        id: 25,
+        name: "Wilhelm van Astrea",
+        aliases: ["Wilhelm Trias", "Sword Demon"],
+        gender: "Male",
+        race: "Human",
+        camp: "Crusch Camp",
+        hair: "White",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "The Sword Demon & Crusch's Butler",
+        role: "Dual-Blade Master Swordsman",
+        lore: "Hunted the White Whale for fourteen years to avenge his late wife Theresia van Astrea.",
+        wikiSlug: "Wilhelm_van_Astrea"
+      },
+      {
+        id: 26,
+        name: "Anastasia Hoshin",
+        aliases: ["Anastasia", "Ana"],
+        gender: "Female",
+        race: "Human",
+        camp: "Anastasia Camp",
+        hair: "Purple",
+        magic: "None (Defective Gate)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Hoshin Trading Company President & Royal Candidate",
+        role: "Merchant Mogul & Mercenary Commander",
+        lore: "Rose from Kararagi poverty to build a continental trade empire, secretly relying on an artificial spirit.",
+        wikiSlug: "Anastasia_Hoshin"
+      },
+      {
+        id: 27,
+        name: "Julius Juukulius",
+        aliases: ["Juli", "Finest of Knights"],
+        gender: "Male",
+        race: "Human",
+        camp: "Anastasia Camp",
+        hair: "Purple",
+        magic: "Spirit Arts (All 6)",
+        divineProtection: "Gathering Spirits",
+        authority: "None",
+        debutArc: 3,
+        title: "The Finest of Knights & Spirit Knight",
+        role: "Six-Quasi-Spirit Al Clauseria Swordsman",
+        lore: "Contracted with six quasi-spirits of every element; fought alongside Subaru against Sloth and Gluttony.",
+        wikiSlug: "Julius_Juukulius"
+      },
+      {
+        id: 28,
+        name: "Mimi Pearlbaton",
+        aliases: ["Mimi"],
+        gender: "Female",
+        race: "Demi-Human (Cat)",
+        camp: "Anastasia Camp",
+        hair: "Orange",
+        magic: "Earth",
+        divineProtection: "Triplets",
+        authority: "None",
+        debutArc: 3,
+        title: "Iron Fang Vice-Captain (Eldest Triplet)",
+        role: "Sonic Roar & Earth Striker",
+        lore: "Energetic eldest of the Pearlbaton triplets who shares senses and burdens with her younger brothers.",
+        wikiSlug: "Mimi_Pearlbaton"
+      },
+      {
+        id: 29,
+        name: "Hetaro Pearlbaton",
+        aliases: ["Hetaro"],
+        gender: "Male",
+        race: "Demi-Human (Cat)",
+        camp: "Anastasia Camp",
+        hair: "Orange",
+        magic: "Water",
+        divineProtection: "Triplets",
+        authority: "None",
+        debutArc: 3,
+        title: "Iron Fang Vice-Captain (Middle Triplet)",
+        role: "Water Healer & Defensive Support",
+        lore: "Caring middle Pearlbaton brother who uses Water magic and his shared Triplets link to protect Mimi.",
+        wikiSlug: "Hetaro_Pearlbaton"
+      },
+      {
+        id: 30,
+        name: "Tivey Pearlbaton",
+        aliases: ["Tivey"],
+        gender: "Male",
+        race: "Demi-Human (Cat)",
+        camp: "Anastasia Camp",
+        hair: "Orange",
+        magic: "Fire",
+        divineProtection: "Triplets",
+        authority: "None",
+        debutArc: 3,
+        title: "Iron Fang Tactician & Quartermaster (Youngest Triplet)",
+        role: "Fire Caster & Logistics Analyst",
+        lore: "Bespectacled youngest Pearlbaton triplet who manages Anastasia's accounts and wields Fire magic.",
+        wikiSlug: "Tivey_Pearlbaton"
+      },
+      {
+        id: 31,
+        name: "Ricardo Welkin",
+        aliases: ["Ricardo"],
+        gender: "Male",
+        race: "Demi-Human (Wolf)",
+        camp: "Anastasia Camp",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Captain of the Iron Fang Mercenaries",
+        role: "Giant Cleaver Vanguard",
+        lore: "Boisterous wolf-man mercenary captain fiercely loyal to Anastasia and surrogate father to the Pearlbatons.",
+        wikiSlug: "Ricardo_Welkin"
+      },
+      {
+        id: 32,
+        name: "Priscilla Barielle",
+        aliases: ["Priscilla", "Sun Princess"],
+        gender: "Female",
+        race: "Human",
+        camp: "Priscilla Camp",
+        hair: "Orange",
+        magic: "Yang",
+        divineProtection: "Sun Blessing",
+        authority: "None",
+        debutArc: 3,
+        title: "Bloody Bride & Fifth Royal Candidate",
+        role: "Yang Sword Sovereign & Crimson Striker",
+        lore: "Believes the entire world turns in her favor; born into Vollachian royalty before fleeing to Lugunica.",
+        wikiSlug: "Priscilla_Barielle"
+      },
+      {
+        id: 33,
+        name: "Aldebaran",
+        aliases: ["Al", "Following Star"],
+        gender: "Male",
+        race: "Human",
+        camp: "Priscilla Camp",
+        hair: "Black",
+        magic: "Earth",
+        divineProtection: "None",
+        authority: "Pride / Territory",
+        debutArc: 3,
+        title: "One-Armed Helmeted Knight of Priscilla",
+        role: "Earth Wall Caster & Matrix Looper",
+        lore: "Fellow Japanese summon who lost his left arm in Vollachian gladiatorial pits and hides his face behind a helm.",
+        wikiSlug: "Aldebaran"
+      },
+      {
+        id: 34,
+        name: "Otto Suwen",
+        aliases: ["Otto", "Internal Affairs Minister"],
+        gender: "Male",
+        race: "Human",
+        camp: "Emilia Camp",
+        hair: "Gray",
+        magic: "Earth",
+        divineProtection: "Soul Language",
+        authority: "None",
+        debutArc: 3,
+        title: "Emilia Camp Minister of Internal Affairs",
+        role: "Earth Spellcaster, Merchant & Animal Spymaster",
+        lore: "Once tormented by hearing every creature's voice at once, he became Subaru's most trusted confidant.",
+        wikiSlug: "Otto_Suwen"
+      },
+      {
+        id: 35,
+        name: "Patrasche",
+        aliases: ["Best Girl"],
+        gender: "Female",
+        race: "Ground Dragon",
+        camp: "Emilia Camp",
+        hair: "Black",
+        magic: "Earth (Ground Dragon)",
+        divineProtection: "Wind Evasion",
+        authority: "None",
+        debutArc: 3,
+        title: "Prideful Diana-Breed Ground Dragon",
+        role: "High-Speed Mount & Loyal Protector",
+        lore: "Chosen by Subaru from Crusch's stables; repeatedly risks her own life to shield her rider from danger.",
+        wikiSlug: "Patrasche"
+      },
+      {
+        id: 36,
+        name: "Petelgeuse Romanée-Conti",
+        aliases: ["Geuse", "Betelgeuse"],
+        gender: "Male",
+        race: "Spirit",
+        camp: "Witch Cult",
+        hair: "Green",
+        magic: "Earth / Spirit Arts",
+        divineProtection: "None",
+        authority: "Sloth",
+        debutArc: 3,
+        title: "Sin Archbishop of Sloth",
+        role: "Unseen Hand Puppeteer & Body-Hopping Spirit",
+        lore: "Once a gentle earth spirit who watched over Emilia in Elior Forest before Pandora shattered his sanity.",
+        wikiSlug: "Petelgeuse_Romanee-Conti"
+      },
+      {
+        id: 37,
+        name: "Marcos Gildark",
+        aliases: ["Marcos"],
+        gender: "Male",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Brown",
+        magic: "Earth",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Captain of the Royal Guard",
+        role: "Earth-Armored Knight Commander",
+        lore: "Stern commander of Lugunica's Royal Knights who oversees knightly discipline and capital security.",
+        wikiSlug: "Marcos_Gildark"
+      },
+      {
+        id: 38,
+        name: "Miklotov McMahon",
+        aliases: ["Miklotov"],
+        gender: "Male",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "White",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Head of the Council of Ten Wise Men",
+        role: "Statesman & Royal Selection Overseer",
+        lore: "Fair-minded elder statesman governing Lugunica after the royal family succumbed to a mysterious plague.",
+        wikiSlug: "Miklotov_McMahon"
+      },
+      {
+        id: 39,
+        name: "Bordeaux Zellgef",
+        aliases: ["Bordeaux"],
+        gender: "Male",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Gray",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Member of the Council of Ten Wise Men",
+        role: "Veteran General & Hardline Councilor",
+        lore: "Outspoken veteran of the Demi-Human War who harbors deep prejudice against half-elves.",
+        wikiSlug: "Bordeaux_Zellgef"
+      },
+      {
+        id: 40,
+        name: "Theresia van Astrea",
+        aliases: ["Theresia", "Former Sword Saint"],
+        gender: "Female",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Red",
+        magic: "None",
+        divineProtection: "Sword Saint / Death God",
+        authority: "None",
+        debutArc: 3,
+        title: "Previous Sword Saint & Flower Lover",
+        role: "Master Swordswoman & White Whale Expedition Leader",
+        lore: "Hated fighting despite her lethal Blessings; fell in battle against Pandora and the White Whale.",
+        wikiSlug: "Theresia_van_Astrea"
+      },
+      {
+        id: 41,
+        name: "Heinkel Astrea",
+        aliases: ["Heinkel"],
+        gender: "Male",
+        race: "Human",
+        camp: "Felt Camp",
+        hair: "Red",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Deputy Commander of the Royal Guard",
+        role: "Embittered Swordsman & Astrea Heir",
+        lore: "Son of Wilhelm and Theresia and father of Reinhard; consumed by guilt over his comatose wife Louanna.",
+        wikiSlug: "Heinkel_Astrea"
+      },
+      {
+        id: 42,
+        name: "Russell Fellow",
+        aliases: ["Russell"],
+        gender: "Male",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Head of the Royal Capital Merchant Guild",
+        role: "Information Broker & Financier",
+        lore: "Shrewd guildmaster who brokered the metia trade and alliance deals during the White Whale subjugation.",
+        wikiSlug: "Russell_Fellow"
+      },
+      {
+        id: 43,
+        name: "Conwood Melahau",
+        aliases: ["Conwood"],
+        gender: "Male",
+        race: "Human",
+        camp: "Crusch Camp",
+        hair: "Gray",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Karsten Household Veteran Officer",
+        role: "Cavalry Commander",
+        lore: "Loyal Karsten retainer who fought alongside Wilhelm and Crusch against the White Whale.",
+        wikiSlug: "Conwood_Melahau"
+      },
+      {
+        id: 44,
+        name: "Ketty Muttart",
+        aliases: ["Ketty"],
+        gender: "Male",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Corrupt Merchant & Appa Baron",
+        role: "Smuggler & Rem's Captor (Failed Loop)",
+        lore: "Greedy merchant who attempted to transport Rem as cargo before being thwarted by Subaru's alliance.",
+        wikiSlug: "Ketty_Muttart"
+      },
+      {
+        id: 45,
+        name: "Flugel",
+        aliases: ["Great Sage"],
+        gender: "Male",
+        race: "Human",
+        camp: "Independent / Neutral",
+        hair: "Black",
+        magic: "Yin",
+        divineProtection: "None",
+        authority: "Sloth / Envy (Former)",
+        debutArc: 3,
+        title: "The Great Sage Who Sealed Satella",
+        role: "Ancient Hero, Watchtower Architect & Tree Planter",
+        lore: "Planted the colossal Flugel Tree on the Lifaus Highway and inscribed Japanese script onto its trunk.",
+        wikiSlug: "Flugel"
+      },
+      {
+        id: 46,
+        name: "Fourier Lugunica",
+        aliases: ["Fourier"],
+        gender: "Male",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Fourth Crown Prince of Lugunica",
+        role: "Late Royal Heir & Crusch's Childhood Friend",
+        lore: "Cheerful prince who inspired Crusch Karsten's ideals before perishing in the royal family epidemic.",
+        wikiSlug: "Fourier_Lugunica"
+      },
+      {
+        id: 47,
+        name: "Grimm Fauzen",
+        aliases: ["Grimm"],
+        gender: "Male",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Former Royal Guard & Demi-Human War Veteran",
+        role: "Knight & Carol's Husband",
+        lore: "Comrade-in-arms of Wilhelm van Astrea during the Demi-Human War who married Theresia's attendant.",
+        wikiSlug: "Grimm_Fauzen"
+      },
+      {
+        id: 48,
+        name: "Carol Remendis",
+        aliases: ["Carol"],
+        gender: "Female",
+        race: "Human",
+        camp: "Kingdom of Lugunica",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 3,
+        title: "Theresia's Attendant & Remendis Matriarch",
+        role: "Noble Attendant",
+        lore: "Served Theresia van Astrea in her youth and is the grandmother of Royal Guard twins Flam and Grassis.",
+        wikiSlug: "Carol_Remendis"
+      },
+
+      // ==================== ARC 4: SANCTUARY & WITCHES OF SIN (17) ====================
+      {
+        id: 49,
+        name: "Garfiel Tinzel",
+        aliases: ["Garf", "Gorgeous Tiger"],
+        gender: "Male",
+        race: "Demi-Human (Tiger)",
+        camp: "Emilia Camp",
+        hair: "Blonde",
+        magic: "Earth",
+        divineProtection: "Earth Spirits",
+        authority: "None",
+        debutArc: 4,
+        title: "Shield of Sanctuary & Emilia's Vanguard",
+        role: "Gauntlet Brawler & Were-Tiger Berserker",
+        lore: "Draws limitless stamina from touching the ground via his Blessing; overcame his fear of the outside world.",
+        wikiSlug: "Garfiel_Tinzel"
+      },
+      {
+        id: 50,
+        name: "Ryuzu Meyer",
+        aliases: ["Ryuzu"],
+        gender: "Female",
+        race: "Elf (Clone)",
+        camp: "Emilia Camp",
+        hair: "Pink",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 4,
+        title: "Original Sanctuary Core Sacrifice",
+        role: "Barrier Core & Clone Template",
+        lore: "Sacrificed herself four centuries ago to anchor Echidna's Sanctuary barrier, birthing countless clones.",
+        wikiSlug: "Ryuzu_Meyer"
+      },
+      {
+        id: 51,
+        name: "Ryuzu Bilma",
+        aliases: ["Grandma Bilma"],
+        gender: "Female",
+        race: "Elf (Clone)",
+        camp: "Emilia Camp",
+        hair: "Pink",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 4,
+        title: "Sanctuary Representative & Caretaker",
+        role: "Village Elder & Shima's Caregiver",
+        lore: "One of the four original independent Ryuzu replicas who guides Sanctuary's Demi-Human residents.",
+        wikiSlug: "Ryuzu_Bilma"
+      },
+      {
+        id: 52,
+        name: "Ryuzu Shima",
+        aliases: ["Shima"],
+        gender: "Female",
+        race: "Elf (Clone)",
+        camp: "Emilia Camp",
+        hair: "Pink",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 4,
+        title: "Garfiel's Grandmother Figure",
+        role: "Clone Commander & Sanctuary Elder",
+        lore: "Gained individuality after entering the Tomb's crystal chamber to rescue a young Garfiel.",
+        wikiSlug: "Ryuzu_Shima"
+      },
+      {
+        id: 53,
+        name: "Echidna",
+        aliases: ["Witch of Greed", "Dona"],
+        gender: "Female",
+        race: "Witch",
+        camp: "Witches of Sin",
+        hair: "White",
+        magic: "All Six Elements",
+        divineProtection: "None",
+        authority: "Greed (Book of Wisdom)",
+        debutArc: 4,
+        title: "Witch of Greed & Host of the Tea Party",
+        role: "Omniscient Scholar & Creator of Artificial Spirits",
+        lore: "Driven by bottomless curiosity; holds the original Tome of Wisdom containing all memories of the world.",
+        wikiSlug: "Echidna"
+      },
+      {
+        id: 54,
+        name: "Satella",
+        aliases: ["Witch of Envy"],
+        gender: "Female",
+        race: "Half-Elf",
+        camp: "Witches of Sin",
+        hair: "Silver",
+        magic: "Yin",
+        divineProtection: "None",
+        authority: "Envy",
+        debutArc: 4,
+        title: "Witch of Envy Who Swallowed Half the World",
+        role: "Shadow Sovereign & Bestower of Return by Death",
+        lore: "Sealed within a shrine near the Augria Sand Dunes; endlessly whispers 'I love you' to Subaru.",
+        wikiSlug: "Satella"
+      },
+      {
+        id: 55,
+        name: "Daphne",
+        aliases: ["Witch of Gluttony"],
+        gender: "Female",
+        race: "Witch",
+        camp: "Witches of Sin",
+        hair: "Gray",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Gluttony",
+        debutArc: 4,
+        title: "Witch of Gluttony & Creator of the Great Mabeasts",
+        role: "Bound Coffin Witch & Mabeast Progenitor",
+        lore: "Created the White Whale, Great Rabbit, and Black Serpent in a misguided attempt to cure world hunger.",
+        wikiSlug: "Daphne"
+      },
+      {
+        id: 56,
+        name: "Typhon",
+        aliases: ["Witch of Pride"],
+        gender: "Female",
+        race: "Witch",
+        camp: "Witches of Sin",
+        hair: "Green",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Pride",
+        debutArc: 4,
+        title: "Witch of Pride & Child Executioner",
+        role: "Guilt-Shattering Judge",
+        lore: "Innocent childlike witch whose touch instantly disintegrates anyone who harbors guilt in their heart.",
+        wikiSlug: "Typhon"
+      },
+      {
+        id: 57,
+        name: "Minerva",
+        aliases: ["Witch of Wrath"],
+        gender: "Female",
+        race: "Witch",
+        camp: "Witches of Sin",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Wrath",
+        debutArc: 4,
+        title: "Witch of Wrath & Healing Pugilist",
+        role: "Strike-to-Heal Brawler",
+        lore: "Every punch she lands heals wounds completely—at the cost of draining Od Lagna's mana and causing disasters elsewhere.",
+        wikiSlug: "Minerva"
+      },
+      {
+        id: 58,
+        name: "Sekhmet",
+        aliases: ["Witch of Sloth"],
+        gender: "Female",
+        race: "Giant",
+        camp: "Witches of Sin",
+        hair: "Purple",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Sloth",
+        debutArc: 4,
+        title: "Witch of Sloth & Strongest of the Six Witches",
+        role: "Unseen Force Crushing Telekinetic",
+        lore: "So indolent that even breathing feels exhausting, yet strong enough to drive Volcanica beyond the Great Waterfall.",
+        wikiSlug: "Sekhmet"
+      },
+      {
+        id: 59,
+        name: "Carmilla",
+        aliases: ["Witch of Lust"],
+        gender: "Female",
+        race: "Witch",
+        camp: "Witches of Sin",
+        hair: "Pink",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Lust",
+        debutArc: 4,
+        title: "Witch of Lust & Faceless Bride",
+        role: "Heart-Stopping Aura Captivator",
+        lore: "Timid witch whose Authority forces everyone nearby to perceive her as their beloved, making them forget to breathe.",
+        wikiSlug: "Carmilla"
+      },
+      {
+        id: 60,
+        name: "Hector",
+        aliases: ["Warlock of Melancholy"],
+        gender: "Male",
+        race: "Warlock",
+        camp: "Witches of Sin",
+        hair: "Purple",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Melancholy",
+        debutArc: 4,
+        title: "Warlock of Melancholy",
+        role: "Gravity-Crushing Sorcerer",
+        lore: "Attacked Sanctuary four hundred years ago, crushing Roswaal A. Mathers and clashing with Echidna.",
+        wikiSlug: "Hector"
+      },
+      {
+        id: 61,
+        name: "Pandora",
+        aliases: ["Witch of Vainglory"],
+        gender: "Female",
+        race: "Witch",
+        camp: "Witch Cult",
+        hair: "Platinum",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Vainglory",
+        debutArc: 4,
+        title: "Witch of Vainglory",
+        role: "Reality-Rewriting Manipulator",
+        lore: "Orchestrated the tragedy in Elior Forest and can rewrite phenomena—including her own death—to suit her design.",
+        wikiSlug: "Pandora"
+      },
+      {
+        id: 62,
+        name: "Fortuna",
+        aliases: ["Mother Fortuna"],
+        gender: "Female",
+        race: "Elf",
+        camp: "Independent / Neutral",
+        hair: "Silver",
+        magic: "Fire",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 4,
+        title: "Emilia's Aunt & Elior Forest Guardian",
+        role: "Elven Fire Mage",
+        lore: "Raised young Emilia in Elior Forest with fierce maternal love before falling victim to Pandora's illusion.",
+        wikiSlug: "Fortuna"
+      },
+      {
+        id: 63,
+        name: "Arch",
+        aliases: ["Elior Elder"],
+        gender: "Male",
+        race: "Elf",
+        camp: "Independent / Neutral",
+        hair: "Silver",
+        magic: "Wind",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 4,
+        title: "Elior Forest Hunter & Protector",
+        role: "Elven Wind Archer",
+        lore: "Guided young Emilia to safety during the Witch Cult invasion of Elior Forest.",
+        wikiSlug: "Arch"
+      },
+      {
+        id: 64,
+        name: "Annerose Miload",
+        aliases: ["Annerose"],
+        gender: "Female",
+        race: "Human",
+        camp: "Emilia Camp",
+        hair: "Purple",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 4,
+        title: "Young Head of the Miload Branch Family",
+        role: "Noble Patron & Emilia's Close Friend",
+        lore: "Roswaal's young relative who sheltered the Emilia Camp at her estate after Sanctuary was liberated.",
+        wikiSlug: "Annerose_Miload"
+      },
+      {
+        id: 65,
+        name: "Clind",
+        aliases: ["Butler Clind"],
+        gender: "Male",
+        race: "Human",
+        camp: "Emilia Camp",
+        hair: "Blue",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Melancholy",
+        debutArc: 4,
+        title: "Annerose's Butler & Ancient Companion",
+        role: "Spatial Compression Fighter & Whip Mentor",
+        lore: "Trained Subaru in parkour and whip combat; secretly wields the Authority of Melancholy.",
+        wikiSlug: "Clind"
+      },
+
+      // ==================== ARC 5: PRIESTELLA, WATERGATE CITY (14) ====================
+      {
+        id: 66,
+        name: "Regulus Corneas",
+        aliases: ["Regulus", "Little King"],
+        gender: "Male",
+        race: "Human",
+        camp: "Witch Cult",
+        hair: "White",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Greed",
+        debutArc: 5,
+        title: "Sin Archbishop of Greed",
+        role: "Invincible Time-Stopped 'Stillness of an Object's Time' User",
+        lore: "Narcissistic rant-prone Archbishop who hides his heartbeat inside his many wives to remain untouchable.",
+        wikiSlug: "Regulus_Corneas"
+      },
+      {
+        id: 67,
+        name: "Sirius Romanée-Conti",
+        aliases: ["Sirius"],
+        gender: "Female",
+        race: "Elf",
+        camp: "Witch Cult",
+        hair: "Silver",
+        magic: "Fire",
+        divineProtection: "None",
+        authority: "Wrath",
+        debutArc: 5,
+        title: "Sin Archbishop of Wrath",
+        role: "Bandaged Chain & Soul-Resonance Pyromancer",
+        lore: "Fanatically worships Petelgeuse and synchronizes emotions and fatal injuries across entire crowds.",
+        wikiSlug: "Sirius_Romanee-Conti"
+      },
+      {
+        id: 68,
+        name: "Capella Emerada Lugunica",
+        aliases: ["Capella", "Mama"],
+        gender: "Female",
+        race: "Human",
+        camp: "Witch Cult",
+        hair: "Blonde",
+        magic: "Dragon Blood",
+        divineProtection: "None",
+        authority: "Lust",
+        debutArc: 5,
+        title: "Sin Archbishop of Lust",
+        role: "Shapeshifting & Flesh-Transmuting Sadist",
+        lore: "Claims the name of a deceased Lugunican princess and mutates victims into flies or black dragons.",
+        wikiSlug: "Capella_Emerada_Lugunica"
+      },
+      {
+        id: 69,
+        name: "Ley Batenkaitos",
+        aliases: ["Ley", "Gourmet"],
+        gender: "Male",
+        race: "Human",
+        camp: "Witch Cult",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Gluttony",
+        debutArc: 5,
+        title: "Sin Archbishop of Gluttony ('Gourmet')",
+        role: "Solar Eclipse Martial Arts & Name/Memory Eater",
+        lore: "Devoured Rem's name and memories; replicates the combat skills of everyone he consumes.",
+        wikiSlug: "Ley_Batenkaitos"
+      },
+      {
+        id: 70,
+        name: "Roy Alphard",
+        aliases: ["Roy", "Bizarre Eating"],
+        gender: "Male",
+        race: "Human",
+        camp: "Witch Cult",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Gluttony",
+        debutArc: 5,
+        title: "Sin Archbishop of Gluttony ('Bizarre Eating')",
+        role: "Dual-Dagger Acrobat & Name/Memory Eater",
+        lore: "Twin brother to Ley Batenkaitos who indiscriminately devours victims without savoring them.",
+        wikiSlug: "Roy_Alphard"
+      },
+      {
+        id: 71,
+        name: "Liliana Masquerade",
+        aliases: ["Liliana", "Songstress"],
+        gender: "Female",
+        race: "Human",
+        camp: "Priscilla Camp",
+        hair: "Purple",
+        magic: "None",
+        divineProtection: "Telepathy",
+        authority: "None",
+        debutArc: 5,
+        title: "Songstress of Priestella",
+        role: "Lyre Bard & Soul-Resonance Counter",
+        lore: "Eccentric traveling bard whose Telepathy-amplified songs broke Sirius's Authority over Priestella.",
+        wikiSlug: "Liliana_Masquerade"
+      },
+      {
+        id: 72,
+        name: "Kiritaka Muse",
+        aliases: ["Kiritaka"],
+        gender: "Male",
+        race: "Human",
+        camp: "Anastasia Camp",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 5,
+        title: "Head of the Muse Company & White Dragon Scales",
+        role: "Magic Crystal Magnate & Liliana's Patron",
+        lore: "Controls Priestella's magic stone trade and funded the city's defense against the Witch Cult.",
+        wikiSlug: "Kiritaka_Muse"
+      },
+      {
+        id: 73,
+        name: "Schult",
+        aliases: ["Schult"],
+        gender: "Male",
+        race: "Human",
+        camp: "Priscilla Camp",
+        hair: "Pink",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 5,
+        title: "Priscilla's Young Butler",
+        role: "Attendant & Messenger",
+        lore: "Timid boy rescued from poverty by Priscilla Barielle who serves her with unwavering devotion.",
+        wikiSlug: "Schult"
+      },
+      {
+        id: 74,
+        name: "Kurgan",
+        aliases: ["Eight-Arms Kurgan"],
+        gender: "Male",
+        race: "Demi-Human (Multi-Arm)",
+        camp: "Vollachia Empire",
+        hair: "Black",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 5,
+        title: "Eight-Arms Kurgan & Hero of Vollachia",
+        role: "Eight-Armed Cleaver Titan",
+        lore: "Legendary Vollachian general resurrected as a corpse soldier to duel Garfiel Tinzel in Priestella.",
+        wikiSlug: "Kurgan"
+      },
+      {
+        id: 75,
+        name: "Joshua Juukulius",
+        aliases: ["Joshua"],
+        gender: "Male",
+        race: "Human",
+        camp: "Anastasia Camp",
+        hair: "Purple",
+        magic: "Water / Spirit Arts",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 5,
+        title: "Anastasia's Secretary & Julius's Younger Brother",
+        role: "Administrator & Water Spirit User",
+        lore: "Admires his older brother Julius deeply; fell into a coma after Roy Alphard ate his name.",
+        wikiSlug: "Joshua_Juukulius"
+      },
+      {
+        id: 76,
+        name: "Sylphy",
+        aliases: ["Wife 184"],
+        gender: "Female",
+        race: "Human",
+        camp: "Independent / Neutral",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 5,
+        title: "Regulus's Wife #184",
+        role: "Captive Bride & Emilia's Ally",
+        lore: "Led Regulus's captive wives in freezing their own hearts so Emilia and Subaru could defeat Greed.",
+        wikiSlug: "Sylphy"
+      },
+      {
+        id: 77,
+        name: "Flam Remendis",
+        aliases: ["Flam"],
+        gender: "Female",
+        race: "Human",
+        camp: "Felt Camp",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "Telepathy",
+        authority: "None",
+        debutArc: 5,
+        title: "Royal Guard Twin (Older Sister)",
+        role: "Telepathic Guard & Reinhard's Attendant",
+        lore: "Shares a telepathic Blessing with her twin sister Grassis while serving the Astrea household.",
+        wikiSlug: "Flam_Remendis"
+      },
+      {
+        id: 78,
+        name: "Grassis Remendis",
+        aliases: ["Grassis"],
+        gender: "Female",
+        race: "Human",
+        camp: "Felt Camp",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "Telepathy",
+        authority: "None",
+        debutArc: 5,
+        title: "Royal Guard Twin (Younger Sister)",
+        role: "Telepathic Guard & Reinhard's Attendant",
+        lore: "Twin sister of Flam Remendis who relays real-time intelligence via their shared Telepathy Blessing.",
+        wikiSlug: "Grassis_Remendis"
+      },
+      {
+        id: 79,
+        name: "Tiga Rauleon",
+        aliases: ["Tiga"],
+        gender: "Male",
+        race: "Human",
+        camp: "Anastasia Camp",
+        hair: "Black",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 5,
+        title: "Iron Fang Officer",
+        role: "Mercenary Swordsman",
+        lore: "Reliable human officer in Ricardo's Iron Fang mercenary company who fought in Priestella.",
+        wikiSlug: "Tiga_Rauleon"
+      },
+
+      // ==================== ARC 6: PLEIADES WATCHTOWER (8) ====================
+      {
+        id: 80,
+        name: "Shaula",
+        aliases: ["Sage Shaula", "Crimson Scorpion"],
+        gender: "Female",
+        race: "Mabeast / Scorpion",
+        camp: "Pleiades Watchtower",
+        hair: "Black",
+        magic: "Yang (Hell's Snipe)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 6,
+        title: "Guardian of the Pleiades Watchtower",
+        role: "Long-Range Yang Sniper & Crimson Scorpion",
+        lore: "Created by Daphne and trained by Flugel; guarded the desert watchtower for four centuries awaiting her master.",
+        wikiSlug: "Shaula"
+      },
+      {
+        id: 81,
+        name: "Reid Astrea",
+        aliases: ["First Sword Saint", "Stick Swinger"],
+        gender: "Male",
+        race: "Human",
+        camp: "Pleiades Watchtower",
+        hair: "Red",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 6,
+        title: "The First Sword Saint & Heavenly Sword",
+        role: "Chopstick-Wielding Concept-Cutting Swordsman",
+        lore: "Reached the Pinnacle of the Sword purely through skill without any Divine Protection; manifests on the Watchtower's 2nd floor.",
+        wikiSlug: "Reid_Astrea"
+      },
+      {
+        id: 82,
+        name: "Volcanica",
+        aliases: ["Divine Dragon"],
+        gender: "Male",
+        race: "Divine Dragon",
+        camp: "Kingdom of Lugunica",
+        hair: "Blue",
+        magic: "Dragon Breath / Yang",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 6,
+        title: "The Divine Dragon & Lugunica's Patron",
+        role: "Top-Floor Watchtower Guardian & Ancient Hero",
+        lore: "Forged a covenant with Lugunica's royal family and sealed Satella alongside Flugel and Reid.",
+        wikiSlug: "Volcanica"
+      },
+      {
+        id: 83,
+        name: "Louis Arneb (Spica)",
+        aliases: ["Louis", "Spica", "Satiation"],
+        gender: "Female",
+        race: "Human",
+        camp: "Emilia Camp",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "Gluttony",
+        debutArc: 6,
+        title: "Sin Archbishop of Gluttony ('Satiation') / Spica",
+        role: "Star-Eater & Reformed Companion",
+        lore: "Existed inside the Hall of Memories until experiencing Return by Death broke her mind into an innocent child.",
+        wikiSlug: "Louis_Arneb"
+      },
+      {
+        id: 84,
+        name: "Scarfdona",
+        aliases: ["Eridna", "Fox Echidna"],
+        gender: "Female",
+        race: "Artificial Spirit",
+        camp: "Anastasia Camp",
+        hair: "White",
+        magic: "Yin",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 6,
+        title: "Anastasia's Artificial Spirit",
+        role: "Od-Draining Spirit & Watchtower Navigator",
+        lore: "Takes the form of a white fox scarf around Anastasia's neck and temporarily piloted her body in the Watchtower.",
+        wikiSlug: "Eridna"
+      },
+      {
+        id: 85,
+        name: "Omega",
+        aliases: ["Lewes Omega"],
+        gender: "Female",
+        race: "Half-Elf (Vessel)",
+        camp: "Independent / Neutral",
+        hair: "Brown",
+        magic: "All Six Elements",
+        divineProtection: "None",
+        authority: "Greed (Book of Wisdom)",
+        debutArc: 6,
+        title: "Revived Vessel of Echidna",
+        role: "Wandering Archmage & Witch Soul Host",
+        lore: "Echidna's soul inhabiting a Ryuzu vessel, traveling across Kararagi and Gusteko with the souls of the other Witches.",
+        wikiSlug: "Omega"
+      },
+      {
+        id: 86,
+        name: "Palmyra",
+        aliases: ["Palmyra"],
+        gender: "Female",
+        race: "Spirit",
+        camp: "Independent / Neutral",
+        hair: "Green",
+        magic: "Spirit Arts",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 6,
+        title: "Omega's Traveling Companion",
+        role: "Spirit Arts Adventurer",
+        lore: "Joined Omega and Colette during their journey across the northern nations following the Sanctuary liberation.",
+        wikiSlug: "Palmyra"
+      },
+      {
+        id: 87,
+        name: "Alec Hoshin",
+        aliases: ["Hoshin of the Wilderness"],
+        gender: "Male",
+        race: "Human",
+        camp: "Kararagi",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 6,
+        title: "Founder of the Kararagi City-States",
+        role: "Merchant Pioneer & Flugel's Companion",
+        lore: "Traveled with Flugel four centuries ago and established Kararagi using Kansai dialect and modern innovations.",
+        wikiSlug: "Alec_Hoshin"
+      },
+
+      // ==================== ARC 7: VOLLACHIA EMPIRE (25) ====================
+      {
+        id: 88,
+        name: "Vincent Vollachia",
+        aliases: ["Abel", "Vincent Abellux"],
+        gender: "Male",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Black",
+        magic: "Yang (Yang Sword)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "77th Emperor of the Sacred Vollachian Empire",
+        role: "Masked Strategist & Yang Sword Wielder",
+        lore: "Ousted in a coup by his own advisor, he allied with Subaru under the alias 'Abel' to reclaim his throne.",
+        wikiSlug: "Vincent_Vollachia"
+      },
+      {
+        id: 89,
+        name: "Medium O'Connell",
+        aliases: ["Medium"],
+        gender: "Female",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Twin-Blade Peddler & Balleroy's Adopted Sister",
+        role: "Acrobatic Dual-Sword Fighter",
+        lore: "Cheerful traveling merchant alongside her brother Flop who wields twin blades with tremendous physical strength.",
+        wikiSlug: "Medium_O%27Connell"
+      },
+      {
+        id: 90,
+        name: "Flop O'Connell",
+        aliases: ["Flop"],
+        gender: "Male",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Optimistic Vollachian Merchant",
+        role: "Negotiator & Medium's Older Brother",
+        lore: "Raised in the same orphanage as Balleroy Temeglyph; treats everyone as a valued customer.",
+        wikiSlug: "Flop_O%27Connell"
+      },
+      {
+        id: 91,
+        name: "Taritta Shudraq",
+        aliases: ["Taritta"],
+        gender: "Female",
+        race: "Demi-Human (Shudraq)",
+        camp: "Vollachia Empire",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "Arrowhead",
+        authority: "None",
+        debutArc: 7,
+        title: "Chieftain of the People of Shudraq",
+        role: "Master Jungle Archer",
+        lore: "Self-doubting younger sister of Mizelda whose Blessing ensures her arrows never miss their mark.",
+        wikiSlug: "Taritta_Shudraq"
+      },
+      {
+        id: 92,
+        name: "Mizelda",
+        aliases: ["Former Chieftain"],
+        gender: "Female",
+        race: "Demi-Human (Shudraq)",
+        camp: "Vollachia Empire",
+        hair: "Black",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Former Chieftain of the Shudraqians",
+        role: "Agile Jungle Warrior",
+        lore: "Fierce, joyful warrior of the Buddheim Jungle who lost a leg fighting Todd and Arakiya in Guaral.",
+        wikiSlug: "Mizelda"
+      },
+      {
+        id: 93,
+        name: "Utakata",
+        aliases: ["Utakata"],
+        gender: "Female",
+        race: "Demi-Human (Shudraq)",
+        camp: "Vollachia Empire",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Youngest Shudraqian Hunter",
+        role: "Blowgun & Bow Scout",
+        lore: "Energetic young girl of the Shudraq tribe who quickly befriends Louis Arneb and Subaru.",
+        wikiSlug: "Utakata"
+      },
+      {
+        id: 94,
+        name: "Kuna",
+        aliases: ["Kuna"],
+        gender: "Female",
+        race: "Demi-Human (Shudraq)",
+        camp: "Vollachia Empire",
+        hair: "Green",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Shudraqian Archer",
+        role: "Vanguard Bowwoman",
+        lore: "One of the core Shudraqian warriors who aided Subaru's bloodless capture of Guaral.",
+        wikiSlug: "Kuna"
+      },
+      {
+        id: 95,
+        name: "Holly",
+        aliases: ["Holly"],
+        gender: "Female",
+        race: "Demi-Human (Shudraq)",
+        camp: "Vollachia Empire",
+        hair: "Orange",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Shudraqian Heavy Warrior",
+        role: "Close-Quarters Brawler",
+        lore: "Tall, muscular Shudraqian warrior who excels at wrestling and subduing armed imperial soldiers.",
+        wikiSlug: "Holly"
+      },
+      {
+        id: 96,
+        name: "Jamal Aurelie",
+        aliases: ["Jamal"],
+        gender: "Male",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Red",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Eyepatched Vollachian Soldier",
+        role: "Dual-Sword Squad Leader & Katya's Brother",
+        lore: "Hot-blooded imperial officer who deeply cares for his wheelchair-bound younger sister Katya.",
+        wikiSlug: "Jamal_Aurelie"
+      },
+      {
+        id: 97,
+        name: "Todd Fang",
+        aliases: ["Todd"],
+        gender: "Male",
+        race: "Demi-Human (Werewolf)",
+        camp: "Vollachia Empire",
+        hair: "Orange",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Pragmatic Imperial Tactician & Werewolf",
+        role: "Relentless Hatchet & Ambush Assassin",
+        lore: "Recognized Subaru as a 'Child of War' immediately, becoming one of his most terrifyingly rational foes.",
+        wikiSlug: "Todd_Fang"
+      },
+      {
+        id: 98,
+        name: "Katya Aurelie",
+        aliases: ["Katya"],
+        gender: "Female",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Red",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Todd's Fiancée & Jamal's Sister",
+        role: "Civilian & Rem's Caretaker in Guaral",
+        lore: "Sheltered an amnesiac Rem and Louis in Guaral while unaware of her fiancé Todd's ruthless nature.",
+        wikiSlug: "Katya_Aurelie"
+      },
+      {
+        id: 99,
+        name: "Zikr Osman",
+        aliases: ["Woman-Lover"],
+        gender: "Male",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Purple",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Second-Class General of Vollachia",
+        role: "Chivalrous Garrison Commander of Guaral",
+        lore: "Gentlemanly general nicknamed 'Woman-Lover' who surrendered Guaral to 'Natsumi Schwartz' without bloodshed.",
+        wikiSlug: "Zikr_Osman"
+      },
+      {
+        id: 100,
+        name: "Yorna Mishigure",
+        aliases: ["Yorna", "Iris (Reincarnation)"],
+        gender: "Female",
+        race: "Demi-Human (Fox)",
+        camp: "Vollachia Empire",
+        hair: "Pink",
+        magic: "Soul Marriage",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Seventh Divine General & Sovereign of Chaosflame",
+        role: "Kimono-Clad Soul Marriage Fox Sorceress",
+        lore: "Shares her life force and immense strength with every resident of her demon city through Soul Marriage.",
+        wikiSlug: "Yorna_Mishigure"
+      },
+      {
+        id: 101,
+        name: "Tanza",
+        aliases: ["Tanza"],
+        gender: "Female",
+        race: "Demi-Human (Deer)",
+        camp: "Vollachia Empire",
+        hair: "Brown",
+        magic: "Soul Marriage",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Yorna's Devoted Attendant",
+        role: "Soul-Empowered Martial Artist",
+        lore: "Young deer-kin girl raised in Chaosflame who channels Yorna's Soul Marriage technique in combat.",
+        wikiSlug: "Tanza"
+      },
+      {
+        id: 102,
+        name: "Olbart Dunkelkenn",
+        aliases: ["Olbart", "Vicious Old Man"],
+        gender: "Male",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "White",
+        magic: "Shinobi Arts (Body Manipulation)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Third Divine General & Master Shinobi",
+        role: "Age-Shrinking Shinobi Assassin",
+        lore: "Ninety-year-old shinobi grandmaster who shrank Subaru, Yorna, and Al into children during the Chaosflame game.",
+        wikiSlug: "Olbart_Dunkelkenn"
+      },
+      {
+        id: 103,
+        name: "Kafma Irulux",
+        aliases: ["Kafma"],
+        gender: "Male",
+        race: "Demi-Human (Insect)",
+        camp: "Vollachia Empire",
+        hair: "Green",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Hive-Tribe Warrior & Second-Class General",
+        role: "Insect-Swarm & Carapace Fighter",
+        lore: "Honorable insect-kin general who guarded Chaosflame and later stood by Emperor Vincent.",
+        wikiSlug: "Kafma_Irulux"
+      },
+      {
+        id: 104,
+        name: "Chisha Gold",
+        aliases: ["Chisha"],
+        gender: "Male",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Fourth Divine General & Imperial Advisor",
+        role: "Master of Disguise & Shadow Double",
+        lore: "Staged a coup against Vincent solely to take his place and die in his stead against a prophesied disaster.",
+        wikiSlug: "Chisha_Gold"
+      },
+      {
+        id: 105,
+        name: "Berstetz Fondalfon",
+        aliases: ["Berstetz"],
+        gender: "Male",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Gray",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Prime Minister of Vollachia",
+        role: "Ruthless Political Schemer",
+        lore: "Manipulated imperial succession and orchestrated the coup against Vincent Vollachia.",
+        wikiSlug: "Berstetz_Fondalfon"
+      },
+      {
+        id: 106,
+        name: "Madelyn Eschart",
+        aliases: ["Madelyn"],
+        gender: "Female",
+        race: "Dragonkin",
+        camp: "Vollachia Empire",
+        hair: "Red",
+        magic: "Dragon Breath / Fire",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Ninth Divine General & Flying Dragon Rider",
+        role: "Draconic Brawler & Cloud Dragon Commander",
+        lore: "Last pure-blooded Dragonkin who revered Balleroy Temeglyph and commands a legion of flying dragons.",
+        wikiSlug: "Madelyn_Eschart"
+      },
+      {
+        id: 107,
+        name: "Cecilus Segmunt",
+        aliases: ["Cecilus", "Blue Lightning"],
+        gender: "Male",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Blue",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "First Divine General & The Blue Lightning",
+        role: "Hypersonic Dual-Blade Swordsman",
+        lore: "Strongest warrior in Vollachia who seeks to become the 'Star Actor' of the world stage.",
+        wikiSlug: "Cecilus_Segmunt"
+      },
+      {
+        id: 108,
+        name: "Arakiya",
+        aliases: ["Spirit Eater"],
+        gender: "Female",
+        race: "Demi-Human (Dog)",
+        camp: "Vollachia Empire",
+        hair: "Brown",
+        magic: "Spirit Eating (All Elements)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Second Divine General & Spirit Eater",
+        role: "Elemental Assimilation Berserker",
+        lore: "Devoted bodyguard to Priscilla since childhood; consumes great spirits to wield their elemental might.",
+        wikiSlug: "Arakiya"
+      },
+      {
+        id: 109,
+        name: "Gustav Morello",
+        aliases: ["Gustav"],
+        gender: "Male",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Brown",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Supervisor of Gladiator Island Ginunhive",
+        role: "Multi-Limbed Arena Warden",
+        lore: "Stern, principled warden of Ginunhive who respects strength and honor among the gladiators.",
+        wikiSlug: "Gustav_Morello"
+      },
+      {
+        id: 110,
+        name: "Weitz Rahn",
+        aliases: ["Weitz"],
+        gender: "Male",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Black",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Pleiades Battalion Gladiator",
+        role: "Heavy Mace Brawler",
+        lore: "One of the three Ginunhive gladiators who first stood beside child-Subaru and sparked the Pleiades Battalion.",
+        wikiSlug: "Weitz_Rahn"
+      },
+      {
+        id: 111,
+        name: "Hiain Yatz",
+        aliases: ["Hiain"],
+        gender: "Male",
+        race: "Demi-Human (Lizardman)",
+        camp: "Vollachia Empire",
+        hair: "Green",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Pleiades Battalion Gladiator",
+        role: "Scale-Armored Lizardman Fighter",
+        lore: "Lizardman gladiator from Ginunhive who became fiercely loyal to 'Boss' Natsuki Schwarz.",
+        wikiSlug: "Hiain_Yatz"
+      },
+      {
+        id: 112,
+        name: "Idra Misanga",
+        aliases: ["Idra"],
+        gender: "Male",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 7,
+        title: "Pleiades Battalion Gladiator",
+        role: "Spearman & Squad Leader",
+        lore: "Former imperial soldier turned Ginunhive gladiator who served as Subaru's right-hand man in the battalion.",
+        wikiSlug: "Idra_Misanga"
+      },
+
+      // ==================== ARC 8: GREAT DISASTER OF VOLLACHIA (9) ====================
+      {
+        id: 113,
+        name: "Sphinx",
+        aliases: ["Witch of the Demi-Human War"],
+        gender: "Female",
+        race: "Zombie / Undead",
+        camp: "Witch Cult / Undead",
+        hair: "Pink",
+        magic: "All Six Elements / Necromancy",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 8,
+        title: "Failed Echidna Clone & Architect of the Great Disaster",
+        role: "Necromantic Lich & Sacrament of the Immortal King Caster",
+        lore: "Born from Echidna's failed cloning experiments; triggered the undead apocalypse across Vollachia.",
+        wikiSlug: "Sphinx"
+      },
+      {
+        id: 114,
+        name: "Eugard Vollachia",
+        aliases: ["Thorn King"],
+        gender: "Male",
+        race: "Zombie / Undead",
+        camp: "Vollachia Empire",
+        hair: "Black",
+        magic: "Yang (Thorns)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 8,
+        title: "The Thorn King & Ancient Vollachian Emperor",
+        role: "Cursed-Thorn Yang Swordsman",
+        lore: "Ancient emperor who loved Iris; resurrected during the Great Disaster with lethal crimson thorns.",
+        wikiSlug: "Eugard_Vollachia"
+      },
+      {
+        id: 115,
+        name: "Iris Vollachia",
+        aliases: ["Iris"],
+        gender: "Female",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Pink",
+        magic: "Soul Marriage",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 8,
+        title: "Creator of the Soul Marriage Technique",
+        role: "Ancient Empresses' Ancestor",
+        lore: "Created the Soul Marriage technique out of love for the Thorn King Eugard, beginning Yorna's cycle of rebirth.",
+        wikiSlug: "Iris_Vollachia"
+      },
+      {
+        id: 116,
+        name: "Lamia Godwin",
+        aliases: ["Lamia"],
+        gender: "Female",
+        race: "Zombie / Undead",
+        camp: "Vollachia Empire",
+        hair: "Blonde",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 8,
+        title: "Former Vollachian Princess & Poison Tactician",
+        role: "Cunning Royal Rival",
+        lore: "Vincent and Priscilla's elder half-sister who perished in the Imperial Selection before being revived.",
+        wikiSlug: "Lamia_Godwin"
+      },
+      {
+        id: 117,
+        name: "Rowan Segmunt",
+        aliases: ["Rowan"],
+        gender: "Male",
+        race: "Zombie / Undead",
+        camp: "Vollachia Empire",
+        hair: "Blue",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 8,
+        title: "Cecilus's Father & Obsessed Swordsman",
+        role: "Heavenly Sword Seeker",
+        lore: "Abandoned everything in pursuit of the Heavenly Sword, raising Cecilus to surpass him.",
+        wikiSlug: "Rowan_Segmunt"
+      },
+      {
+        id: 118,
+        name: "Balleroy Temeglyph",
+        aliases: ["Balleroy", "Magic Sniper"],
+        gender: "Male",
+        race: "Zombie / Undead",
+        camp: "Vollachia Empire",
+        hair: "Blonde",
+        magic: "Wind",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 8,
+        title: "Former Ninth Divine General & Magic Marksman",
+        role: "Flying Dragon Sniper",
+        lore: "Orphanage older brother to Flop and Medium; his death in the Crimson Lapis Castle sparked Madelyn's grief.",
+        wikiSlug: "Balleroy_Temeglyph"
+      },
+      {
+        id: 119,
+        name: "Groovy Gumlet",
+        aliases: ["Groovy"],
+        gender: "Male",
+        race: "Demi-Human (Mole)",
+        camp: "Vollachia Empire",
+        hair: "Brown",
+        magic: "Curse Arts",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 8,
+        title: "Sixth Divine General & Curse Tool Craftsman",
+        role: "Cursed Weapon Forger & Mole-Kin Warrior",
+        lore: "Foul-mouthed mole-kin general capable of forging and wielding devastating cursed armaments.",
+        wikiSlug: "Groovy_Gumlet"
+      },
+      {
+        id: 120,
+        name: "Halibel",
+        aliases: ["Halibel the Admirer"],
+        gender: "Male",
+        race: "Demi-Human (Wolf)",
+        camp: "Kararagi",
+        hair: "Black",
+        magic: "Shinobi Arts (Shadow / Curse)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 8,
+        title: "Strongest Warrior of Kararagi",
+        role: "Pipe-Smoking Shinobi Clone & Curse Master",
+        lore: "Laid-back wolf-kin shinobi regarded as Kararagi's equivalent to Reinhard and Cecilus.",
+        wikiSlug: "Halibel"
+      },
+      {
+        id: 121,
+        name: "Moguro Hagane",
+        aliases: ["Moguro"],
+        gender: "Male",
+        race: "Steel Giant",
+        camp: "Vollachia Empire",
+        hair: "Gray",
+        magic: "Earth",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 8,
+        title: "Fifth Divine General & Living Fortress",
+        role: "Colossal Steel Colossus",
+        lore: "Sentient steel giant whose massive body serves as an impenetrable bulwark for the Vollachian Empire.",
+        wikiSlug: "Moguro_Hagane"
+      },
+
+      // ==================== ARC 9: WATCHTOWER RETURN & REBELLION (3) ====================
+      {
+        id: 122,
+        name: "Yae Tenzen",
+        aliases: ["Yae"],
+        gender: "Female",
+        race: "Human",
+        camp: "Priscilla Camp",
+        hair: "Black",
+        magic: "Shinobi Arts (Thread)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 9,
+        title: "Priscilla's Maid & Hidden Shinobi",
+        role: "Razor-Thread Assassin",
+        lore: "Secretly a shinobi trained alongside Olbart's clan; became a key accomplice in Aldebaran's gambit.",
+        wikiSlug: "Yae_Tenzen"
+      },
+      {
+        id: 123,
+        name: "Ezzo Cadner",
+        aliases: ["Ezzo"],
+        gender: "Male",
+        race: "Human",
+        camp: "Felt Camp",
+        hair: "Brown",
+        magic: "All Six Elements",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 9,
+        title: "Genius Mage of Felt's Camp",
+        role: "Six-Element Researcher & Battle Mage",
+        lore: "Brilliant eccentric mage recruited by Felt and Reinhard who rivals Roswaal in magical theory.",
+        wikiSlug: "Ezzo_Cadner"
+      },
+      {
+        id: 124,
+        name: "Dorkell",
+        aliases: ["Dorkell"],
+        gender: "Male",
+        race: "Human",
+        camp: "Independent / Neutral",
+        hair: "Gray",
+        magic: "Yin",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 9,
+        title: "Keeper of Forbidden Archives",
+        role: "Yin Lorekeeper",
+        lore: "Mysterious scholar connected to ancient sealing arts and the secrets surrounding the Watchtower.",
+        wikiSlug: "Dorkell"
+      },
+
+      // ==================== ARC 10: LUGUNICA SUCCESSION & FRONTIER (2) ====================
+      {
+        id: 125,
+        name: "Serena Dracroy",
+        aliases: ["Serena"],
+        gender: "Female",
+        race: "Human",
+        camp: "Vollachia Empire",
+        hair: "Red",
+        magic: "None",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 10,
+        title: "Marquess of Vollachia & Dragon Tamer Noble",
+        role: "Diplomat & Estate Sovereign",
+        lore: "Scarred, sharp-witted Vollachian marquess who navigates post-Disaster diplomacy with Lugunica.",
+        wikiSlug: "Serena_Dracroy"
+      },
+      {
+        id: 126,
+        name: "Muspel",
+        aliases: ["Great Spirit of Earth"],
+        gender: "Male",
+        race: "Great Spirit",
+        camp: "Vollachia Empire",
+        hair: "Brown",
+        magic: "Earth (Great Spirit)",
+        divineProtection: "None",
+        authority: "None",
+        debutArc: 10,
+        title: "Great Spirit of Earth of Vollachia",
+        role: "Tectonic Mana Pillar",
+        lore: "One of the Four Great Spirits residing beneath the Vollachian Empire, sustaining its geothermal veins.",
+        wikiSlug: "Muspel"
+      }
+    ];
+
+    /**
+     * =========================================================================
+     * 2. COMPLETE 100 QUOTES DATABASE (10 PER ARC FOR ARCS 1–10)
+     * =========================================================================
+     */
+    const QUOTES_DATABASE = [
+      // --- ARC 1 (10 Quotes) ---
+      { id: 1, arc: 1, characterId: 2, quote: "My name is Emilia. Just Emilia. It's a pleasure to meet you.", context: "Arc 1 — Royal Capital Alleyway" },
+      { id: 2, arc: 1, characterId: 1, quote: "I'm going to save you! Even if you don't remember me, I will definitely save you!", context: "Arc 1 — Loot House Final Loop" },
+      { id: 3, arc: 1, characterId: 3, quote: "Lia is a good girl. She can't leave someone in trouble alone, even when it hurts her.", context: "Arc 1 — Searching for the Insignia" },
+      { id: 4, arc: 1, characterId: 4, quote: "In the slums, you either steal or starve. Nobody's gonna hand you a silver spoon!", context: "Arc 1 — Felt's Slum Hideout" },
+      { id: 5, arc: 1, characterId: 5, quote: "I am Reinhard van Astrea, a knight of the Royal Guard. Allow me to assist you.", context: "Arc 1 — Confrontation at the Loot House" },
+      { id: 6, arc: 1, characterId: 6, quote: "How lovely... the warmth of freshly opened bowels is truly the finest sensation in the world.", context: "Arc 1 — Night Clash at the Loot House" },
+      { id: 7, arc: 1, characterId: 7, quote: "Felt, don't throw your life away for a stubborn old giant like me!", context: "Arc 1 — Defending the Loot House" },
+      { id: 8, arc: 1, characterId: 8, quote: "If you're not gonna buy an appa, quit blocking my storefront, kid!", context: "Arc 1 — Royal Capital Fruit Stand" },
+      { id: 9, arc: 1, characterId: 9, quote: "Empty your pockets, pal! Don't make us rough you up in this back alley!", context: "Arc 1 — Subaru's First Arrival" },
+      { id: 10, arc: 1, characterId: 1, quote: "Return by Death... that's the power I was given in this world.", context: "Arc 1 — Realizing the Loop" },
+
+      // --- ARC 2 (10 Quotes) ---
+      { id: 11, arc: 2, characterId: 12, quote: "Because Subaru-kun is Rem's hero. Let's start over from here—from square one, from zero!", context: "Arc 2 / 3 — Devoted Oni Confession" },
+      { id: 12, arc: 2, characterId: 13, quote: "Barusu, your incompetence is truly breathtaking. Make yourself useful and peel these potatoes.", context: "Arc 2 — Roswaal Manor Kitchen" },
+      { id: 13, arc: 2, characterId: 14, quote: "Hmph. Do not enter my Forbidden Library without permission, I suppose!", context: "Arc 2 — Crossing the Door" },
+      { id: 14, arc: 2, characterId: 15, quote: "Now then, what path will you choose to carve out your own destiny, Subaru-kun?", context: "Arc 2 — Roswaal's Study" },
+      { id: 15, arc: 2, characterId: 17, quote: "When I grow up, I'm going to become a famous seamstress in the Royal Capital!", context: "Arc 2 — Irlam Village Morning" },
+      { id: 16, arc: 2, characterId: 18, quote: "The doggies in the forest are hungry, so we have to feed them nicely~", context: "Arc 2 — Irlam Forest Mabeast Incident" },
+      { id: 17, arc: 2, characterId: 12, quote: "Sister is everything to Rem. Rem exists solely to make up for what Sister lost.", context: "Arc 2 — Moonlight Confession" },
+      { id: 18, arc: 2, characterId: 14, quote: "I will heal you, I suppose, so stop crying like a pathetic child!", context: "Arc 2 — Protecting Subaru from the Curse" },
+      { id: 19, arc: 2, characterId: 1, quote: "I hate myself! I'm empty, weak, and all talk—yet I still want to save everyone here!", context: "Arc 2 — Cliffside Resolve" },
+      { id: 20, arc: 2, characterId: 2, quote: "You worked so hard, Subaru. You can rest your head in my lap for a little while.", context: "Arc 2 — Lap Pillow Scene" },
+
+      // --- ARC 3 (10 Quotes) ---
+      { id: 21, arc: 3, characterId: 23, quote: "We of Lugunica do not need a dragon to prop us up. We shall stand on our own two feet!", context: "Arc 3 — Royal Selection Ceremony" },
+      { id: 22, arc: 3, characterId: 24, quote: "Nya~ You really are hopeless, Subaru-kyun. Leave the healing to Ferris!", context: "Arc 3 — Karsten Estate Recovery" },
+      { id: 23, arc: 3, characterId: 25, quote: "I am Wilhelm van Astrea, the Sword Demon—and today I slay the White Whale for my wife!", context: "Arc 3 — Battle Beneath the Flugel Tree" },
+      { id: 24, arc: 3, characterId: 26, quote: "Everything in this world has a price tag, and I intend to buy the whole kingdom.", context: "Arc 3 — Royal Selection Declaration" },
+      { id: 25, arc: 3, characterId: 27, quote: "A knight's pride is not merely words; it is forged in blood, duty, and unwavering resolve.", context: "Arc 3 — Royal Castle Arena" },
+      { id: 26, arc: 3, characterId: 32, quote: "All the world exists for my amusement. Bow your heads before the Sun Princess!", context: "Arc 3 — Priscilla's Entrance" },
+      { id: 27, arc: 3, characterId: 33, quote: "Take it easy, bro. If you push yourself too hard in this world, you'll break.", context: "Arc 3 — Carriage Ride with Al" },
+      { id: 28, arc: 3, characterId: 34, quote: "I'm a merchant, Natsuki-san! Even if I run away, I always come back to collect my debt!", context: "Arc 3 — White Whale Fog Ambush" },
+      { id: 29, arc: 3, characterId: 36, quote: "My brain trembles! How slothful, how truly slothful you are!", context: "Arc 3 — Witch Cult Cave" },
+      { id: 30, arc: 3, characterId: 40, quote: "Do you like flowers? Tell me, Wilhelm... why do you swing your sword?", context: "Arc 3 — Astrea Flashback" },
+
+      // --- ARC 4 (10 Quotes) ---
+      { id: 31, arc: 4, characterId: 49, quote: "My Gorgeous Tiger blood is boiling! Nobody passes through Sanctuary without getting past me!", context: "Arc 4 — Sanctuary Barrier Gate" },
+      { id: 32, arc: 4, characterId: 53, quote: "Welcome to my Tea Party. I am Echidna, the Witch of Greed—ask me anything your heart desires.", context: "Arc 4 — Tomb of Greed" },
+      { id: 33, arc: 4, characterId: 54, quote: "I love you. Because you gave me light, took my hand, and taught me the outside world.", context: "Arc 4 — Shadow Garden / Tea Party" },
+      { id: 34, arc: 4, characterId: 14, quote: "Choose me, Subaru! Make me your number one, I suppose!", context: "Arc 4 — Burning Forbidden Library" },
+      { id: 35, arc: 4, characterId: 57, quote: "Seeing people hurt makes me so angry I could scream—so I'll punch every wound away!", context: "Arc 4 — Witch's Tea Party" },
+      { id: 36, arc: 4, characterId: 56, quote: "Are you a bad guy? Let me touch you so we can see how much guilt you're hiding!", context: "Arc 4 — Judgment of Pride" },
+      { id: 37, arc: 4, characterId: 55, quote: "Eating and being eaten—that's the circle of life for all living creatures, right?", context: "Arc 4 — Witch of Gluttony's Philosophy" },
+      { id: 38, arc: 4, characterId: 61, quote: "Your eyes have the right color, Emilia. Surely you will open the seal for me.", context: "Arc 4 — Elior Forest Memory Trial" },
+      { id: 39, arc: 4, characterId: 62, quote: "I love you, Lia. More than anyone else in this entire world, I love you.", context: "Arc 4 — Emilia's First Trial" },
+      { id: 40, arc: 4, characterId: 34, quote: "Because we are friends, Natsuki-san! You don't need any other reason to let me help you!", context: "Arc 4 — Punching Sense into Subaru" },
+
+      // --- ARC 5 (10 Quotes) ---
+      { id: 41, arc: 5, characterId: 66, quote: "Do not violate my rights! I am the most satisfied, complete existence in the world!", context: "Arc 5 — Priestella Clocktower" },
+      { id: 42, arc: 5, characterId: 67, quote: "Let our hearts beat as one, melt together, and burn in the purifying flames of love!", context: "Arc 5 — Priestella Plaza" },
+      { id: 43, arc: 5, characterId: 68, quote: "Hahahaha! Meat bags only care about pretty faces, so Mama will sculpt you into lovely flies!", context: "Arc 5 — City Hall Broadcast" },
+      { id: 44, arc: 5, characterId: 69, quote: "Gochisousama! What a feast of memories and names—let's dig right in!", context: "Arc 5 — Waterway Clash" },
+      { id: 45, arc: 5, characterId: 71, quote: "Listen to my song! Let the melody of Priestella blow away all that dark gloom!", context: "Arc 5 — Control Tower Concert" },
+      { id: 46, arc: 5, characterId: 1, quote: "Listen up, Priestella! We are going to take back every single tower from the Witch Cult!", context: "Arc 5 — City-Wide Broadcast Speech" },
+      { id: 47, arc: 5, characterId: 2, quote: "I am Emilia, frozen witch of Elior Forest—and I refuse to become your bride!", context: "Arc 5 — Cathedral Wedding Crash" },
+      { id: 48, arc: 5, characterId: 49, quote: "Eight arms or eighty arms, I'll shatter every single blade with my own two fists!", context: "Arc 5 — Duel with Kurgan" },
+      { id: 49, arc: 5, characterId: 32, quote: "Dance, Songstress! The heavens themselves favor my victory over Wrath!", context: "Arc 5 — Crimson Flame Strike" },
+      { id: 50, arc: 5, characterId: 76, quote: "Freeze our hearts, Emilia-sama! End his twisted kingdom once and for all!", context: "Arc 5 — Wives' Rebellion Against Regulus" },
+
+      // --- ARC 6 (10 Quotes) ---
+      { id: 51, arc: 6, characterId: 80, quote: "Master! You finally came back for Shaula after four hundred years!", context: "Arc 6 — Pleiades Watchtower Balcony" },
+      { id: 52, arc: 6, characterId: 81, quote: "You dare challenge the Heavenly Sword with that dull stick? Come at me, brat!", context: "Arc 6 — Second Floor Trial" },
+      { id: 53, arc: 6, characterId: 82, quote: "Patella... Hast thou returned to the Watchtower after all these eons?", context: "Arc 6 — Top Floor of Pleiades" },
+      { id: 54, arc: 6, characterId: 83, quote: "Return by Death is unfair! How can anyone beat a monster who gets infinite retries?!", context: "Arc 6 — Hall of Memories Breakdown" },
+      { id: 55, arc: 6, characterId: 1, quote: "Natsuki Subaru is an amazing guy! That's why I'm going to carry his name forward!", context: "Arc 6 — Amnesiac Subaru's Resolve" },
+      { id: 56, arc: 6, characterId: 27, quote: "Even if the entire world forgets my name, my blade still remembers the oath I swore!", context: "Arc 6 — Julius vs Reid Astrea" },
+      { id: 57, arc: 6, characterId: 84, quote: "I am neither Echidna nor Anastasia—I am the spirit who chose to walk beside her.", context: "Arc 6 — Green Room Confession" },
+      { id: 58, arc: 6, characterId: 13, quote: "Stand up, Barusu. Even without your memories, you are still the man Rem believed in.", context: "Arc 6 — Watchtower Stairwell" },
+      { id: 59, arc: 6, characterId: 18, quote: "If you keep hurting yourself, I'll sic all my Mabeasts on you, okay?", context: "Arc 6 — Green Room" },
+      { id: 60, arc: 6, characterId: 80, quote: "Even if I turn into a mindless scorpion, I'll never forget Master's warmth...", context: "Arc 6 — Crimson Scorpion Farewell" },
+
+      // --- ARC 7 (10 Quotes) ---
+      { id: 61, arc: 7, characterId: 88, quote: "In the Sacred Vollachian Empire, only the strong survive—and I am its rightful Emperor!", context: "Arc 7 — Buddheim Jungle Campfire" },
+      { id: 62, arc: 7, characterId: 90, quote: "Everyone in the world is a valued customer! Let's talk things out with a smile, Mister!", context: "Arc 7 — Peddler's Wagon" },
+      { id: 63, arc: 7, characterId: 89, quote: "Leave the heavy lifting to Medium! Big Bro and I will carve a path right through!", context: "Arc 7 — Guaral Siege" },
+      { id: 64, arc: 7, characterId: 91, quote: "My Blessing guides my arrow, yet my heart still trembles to lead the People of Shudraq.", context: "Arc 7 — Blood Ritual of Shudraq" },
+      { id: 65, arc: 7, characterId: 97, quote: "A Child of War who never panics when cornered... I have to kill him before he strikes!", context: "Arc 7 — Guaral Inn Ambush" },
+      { id: 66, arc: 7, characterId: 100, quote: "All who dwell within my Chaosflame are my beloved children, bound by Soul Marriage!", context: "Arc 7 — Demon City Chaosflame" },
+      { id: 67, arc: 7, characterId: 102, quote: "Hohoho! An old shinobi knows plenty of tricks to shrink arrogant youngsters down to size!", context: "Arc 7 — Chaosflame Hide-and-Seek" },
+      { id: 68, arc: 7, characterId: 107, quote: "Behold the Blue Lightning! This entire empire is merely the stage for my starring role!", context: "Arc 7 — Gladiator Island Ginunhive" },
+      { id: 69, arc: 7, characterId: 1, quote: "I am Natsuki Schwarz, child of the Emperor—and the Pleiades Battalion will conquer this island!", context: "Arc 7 — Ginunhive Uprising" },
+      { id: 70, arc: 7, characterId: 104, quote: "To preserve the Empire, even an advisor must wear the mask of the Emperor himself.", context: "Arc 7 — Lupugana Imperial Capital" },
+
+      // --- ARC 8 (10 Quotes) ---
+      { id: 71, arc: 8, characterId: 113, quote: "I am Sphinx, a flawed replica of Greed—and I shall drown this empire in the Sacrament of the Immortal King!", context: "Arc 8 — Great Disaster Awakening" },
+      { id: 72, arc: 8, characterId: 114, quote: "These cursed thorns pierce all who draw near, yet for Iris I would endure eternity!", context: "Arc 8 — Thorn King's Lament" },
+      { id: 73, arc: 8, characterId: 120, quote: "Take a puff and relax, danna. Kararagi's strongest shinobi never misses his mark.", context: "Arc 8 — Arrival of Halibel" },
+      { id: 74, arc: 8, characterId: 118, quote: "From high above the clouds, a single wind bullet is all it takes to end the battle.", context: "Arc 8 — Resurrected Magic Sniper" },
+      { id: 75, arc: 8, characterId: 106, quote: "Balleroy! Why did you leave Madelyn behind all alone in this cold sky?!", context: "Arc 8 — Dragonkin Grief" },
+      { id: 76, arc: 8, characterId: 116, quote: "Even in death, the Imperial Selection is a game I intend to outsmart, dear brother!", context: "Arc 8 — Lamia's Gambit" },
+      { id: 77, arc: 8, characterId: 32, quote: "I lived as Priscilla Barielle, loved by the world, and I shall depart without a single regret!", context: "Arc 8 — Sun Princess's Farewell" },
+      { id: 78, arc: 8, characterId: 33, quote: "Princess... without you shining in this world, what am I supposed to do now?", context: "Arc 8 — Aftermath of Lupugana" },
+      { id: 79, arc: 8, characterId: 119, quote: "Quit whining and swing that cursed blade before I hammer you into the dirt!", context: "Arc 8 — Sixth Divine General" },
+      { id: 80, arc: 8, characterId: 88, quote: "We do not mourn by halting our stride; Vollachia marches forward over the ashes!", context: "Arc 8 — Emperor's Resolution" },
+
+      // --- ARC 9 (10 Quotes) ---
+      { id: 81, arc: 9, characterId: 33, quote: "I'm done playing the good little knight. If Natsuki Subaru is the root of this tragedy, I'll seal him away!", context: "Arc 9 — Aldebaran's Rebellion" },
+      { id: 82, arc: 9, characterId: 122, quote: "A shinobi serves in the shadows, spinning threads invisible until the throat is already cut.", context: "Arc 9 — Yae Tenzen's Betrayal" },
+      { id: 83, arc: 9, characterId: 123, quote: "Six elements woven in unison! Let's see how your tricks hold up against real sorcery!", context: "Arc 9 — Ezzo Cadner in Battle" },
+      { id: 84, arc: 9, characterId: 5, quote: "Even against an old acquaintance, I cannot allow you to take Subaru away!", context: "Arc 9 — Reinhard Intercepts Al" },
+      { id: 85, arc: 9, characterId: 14, quote: "Give Subaru back right now, I suppose! My contract with him will never be severed!", context: "Arc 9 — Beatrice's Fury" },
+      { id: 86, arc: 9, characterId: 2, quote: "No matter where you seal Subaru, I will freeze the very heavens to bring him home!", context: "Arc 9 — Emilia's Oath" },
+      { id: 87, arc: 9, characterId: 17, quote: "Subaru-sama taught us never to give up—so even I will fight with Yin magic!", context: "Arc 9 — Petra Steps Forward" },
+      { id: 88, arc: 9, characterId: 49, quote: "My fangs and fists won't let any traitor walk out of the Sand Dunes alive!", context: "Arc 9 — Garfiel's Roar" },
+      { id: 89, arc: 9, characterId: 124, quote: "Forbidden seals exist for a reason; once opened, the past and present bleed together.", context: "Arc 9 — Dorkell's Warning" },
+      { id: 90, arc: 9, characterId: 41, quote: "Even a broken Astrea still knows how to grip a hilt when his family is on the line!", context: "Arc 9 — Heinkel's Stand" },
+
+      // --- ARC 10 (10 Quotes) ---
+      { id: 91, arc: 10, characterId: 125, quote: "Scars are medals of survival in Vollachia—let us see what mettle Lugunica's candidates possess.", context: "Arc 10 — Serena Dracroy's Envoy" },
+      { id: 92, arc: 10, characterId: 126, quote: "The earth remembers every footstep of emperors and fools alike beneath this soil.", context: "Arc 10 — Voice of Great Spirit Muspel" },
+      { id: 93, arc: 10, characterId: 2, quote: "The Royal Selection is entering its final chapter, and I will stand beside everyone who believed in me.", context: "Arc 10 — Lugunica Summit" },
+      { id: 94, arc: 10, characterId: 4, quote: "Watch closely, nobles! I'm gonna flip this dusty old kingdom upside down!", context: "Arc 10 — Felt's Proclamation" },
+      { id: 95, arc: 10, characterId: 23, quote: "With my memories and sword restored, the Karsten name will lead Lugunica into a new era.", context: "Arc 10 — Crusch's Return" },
+      { id: 96, arc: 10, characterId: 26, quote: "Cross-border trade between Kararagi, Vollachia, and Lugunica starts right at my desk!", context: "Arc 10 — Anastasia's Grand Deal" },
+      { id: 97, arc: 10, characterId: 15, quote: "The stage is finally set, Subaru-kun. Every piece has arrived at its appointed square.", context: "Arc 10 — Roswaal's Endgame" },
+      { id: 98, arc: 10, characterId: 34, quote: "If you think I'm letting you charge into the Royal Capital alone again, think twice, Natsuki-san!", context: "Arc 10 — Otto's Strategy" },
+      { id: 99, arc: 10, characterId: 12, quote: "Whatever future awaits us in Lugunica, Rem will walk right beside Subaru-kun.", context: "Arc 10 — Walking Forward Together" },
+      { id: 100, arc: 10, characterId: 1, quote: "We've come through death, despair, and empires—now let's bring everyone a happy ending!", context: "Arc 10 — Subaru's Final Vow" }
+    ];
+
+    /**
+     * =========================================================================
+     * 3. ATTRIBUTE COMPARISON & SHARED LOGIC
+     *    Separates Magic, Divine Protection, and Authority completely
+     * =========================================================================
+     */
+    const MAGIC_KEYWORDS = [
+      "Fire",
+      "Water",
+      "Earth",
+      "Wind",
+      "Yin",
+      "Yang",
+      "Spirit Arts",
+      "Shinobi Arts",
+      "Curse",
+      "Soul Marriage",
+      "All Six Elements",
+      "Dragon Breath",
+      "Dragon Blood",
+      "Great Spirit",
+      "Necromancy"
+    ];
+
+    const SIX_BASIC_ELEMENTS = ["Fire", "Water", "Earth", "Wind", "Yin", "Yang"];
+
+    function hasUsableMagic(magicStr) {
+      if (!magicStr) return false;
+      const lower = magicStr.toLowerCase();
+      return !lower.startsWith("none");
+    }
+
+    function extractMagicTokens(magicStr) {
+      const tokens = new Set();
+      if (!hasUsableMagic(magicStr)) return tokens;
+
+      for (const kw of MAGIC_KEYWORDS) {
+        if (magicStr.toLowerCase().includes(kw.toLowerCase())) {
+          tokens.add(kw);
+        }
+      }
+      // If character has All Six Elements (or Spirit Eating All Elements), include the 6 basic elements
+      if (magicStr.toLowerCase().includes("all six elements") || magicStr.toLowerCase().includes("all elements")) {
+        SIX_BASIC_ELEMENTS.forEach(el => tokens.add(el));
+      }
+      return tokens;
+    }
+
+    /**
+     * Compare Magic attribute:
+     * - Green ('match') if exact string match (including "None" === "None")
+     * - Yellow ('partial') if both have magic and share an element/type (e.g., Fire, Water, Earth, Wind, Yin, Yang, Spirit Arts, Shinobi Arts, Curse, Soul Marriage, All Six Elements), or both are None/Defective Gate variants
+     * - Gray ('none') otherwise
+     */
+    function compareMagic(guessMagic, targetMagic) {
+      if (guessMagic === targetMagic) return "match";
+
+      const guessHas = hasUsableMagic(guessMagic);
+      const targetHas = hasUsableMagic(targetMagic);
+
+      // Both lack usable magic (e.g., "None" vs "None (Defective Gate)")
+      if (!guessHas && !targetHas) {
+        return "partial";
+      }
+
+      // Only one has magic
+      if (!guessHas || !targetHas) {
+        return "none";
+      }
+
+      // Both have magic: check shared element/type tokens
+      const guessTokens = extractMagicTokens(guessMagic);
+      const targetTokens = extractMagicTokens(targetMagic);
+      for (const token of guessTokens) {
+        if (targetTokens.has(token)) {
+          return "partial";
+        }
+      }
+      return "none";
+    }
+
+    /**
+     * Compare Divine Protection attribute:
+     * - Green ('match') if exact string match (including "None" === "None")
+     * - Yellow ('partial') if both have a Divine Protection !== 'None'
+     * - Gray ('none') if only one has a Divine Protection
+     */
+    function compareDivineProtection(guessDP, targetDP) {
+      if (guessDP === targetDP) return "match";
+      if (guessDP !== "None" && targetDP !== "None") return "partial";
+      return "none";
+    }
+
+    /**
+     * Compare Authority attribute:
+     * - Green ('match') if exact string match (including "None" === "None")
+     * - Yellow ('partial') if both have an Authority !== 'None'
+     * - Gray ('none') if only one has an Authority
+     */
+    function compareAuthority(guessAuth, targetAuth) {
+      if (guessAuth === targetAuth) return "match";
+      if (guessAuth !== "None" && targetAuth !== "None") return "partial";
+      return "none";
+    }
+
+    /**
+     * Compare Race attribute:
+     * - Green ('match') if exact
+     * - Yellow ('partial') if both are Demi-Human variants, Elf/Half-Elf variants, or Spirit/Great Spirit/Artificial Spirit variants
+     */
+    function compareRace(guessRace, targetRace) {
+      if (guessRace === targetRace) return "match";
+      const groups = ["Demi-Human", "Elf", "Spirit", "Dragon", "Witch"];
+      for (const g of groups) {
+        if (guessRace.includes(g) && targetRace.includes(g)) {
+          return "partial";
+        }
+      }
+      return "none";
+    }
+
+    /**
+     * Evaluate all 8 compared attributes between guess and target
+     */
+    function evaluateGuess(guess, target) {
+      const debutStatus =
+        guess.debutArc === target.debutArc
+          ? "match"
+          : "partial";
+      const debutArrow =
+        guess.debutArc === target.debutArc
+          ? ""
+          : target.debutArc > guess.debutArc
+          ? "▲"
+          : "▼";
+
+      return {
+        characterMatch: guess.id === target.id,
+        gender: guess.gender === target.gender ? "match" : "none",
+        race: compareRace(guess.race, target.race),
+        camp: guess.camp === target.camp ? "match" : "none",
+        hair: guess.hair === target.hair ? "match" : "none",
+        magic: compareMagic(guess.magic, target.magic),
+        divineProtection: compareDivineProtection(guess.divineProtection, target.divineProtection),
+        authority: compareAuthority(guess.authority, target.authority),
+        debut: debutStatus,
+        debutArrow
+      };
+    }
+
+    /**
+     * =========================================================================
+     * 4. PORTRAIT SYSTEM (MANIFEST.JSON + OPTIONAL WIKI FALLBACK + ROYAL CREST)
+     * =========================================================================
+     */
+    let portraitManifest = {};
+    let wikiImageCache = {};
+    let useWikiFallback = false;
+
+    // Load ./portraits/manifest.json if present in the repo
+    async function loadPortraitManifest() {
+      try {
+        const res = await fetch("./portraits/manifest.json", { cache: "no-store" });
+        if (res.ok) {
+          portraitManifest = await res.json();
+          const count = Object.keys(portraitManifest).length;
+          const statusEl = document.getElementById("portrait-source-status");
+          if (statusEl && count > 0) {
+            statusEl.textContent = `Repo Manifest Loaded (${count} portraits)`;
+            statusEl.className = "text-emerald-400 font-mono";
+          }
+        }
+      } catch (err) {
+        // Standalone mode: procedural royal crests are used seamlessly
+      }
+    }
+
+    // Generate color palette seeded by character attributes for procedural royal portraits
+    function getCharacterPalette(char) {
+      const hairColors = {
+        Black: ["#1e293b", "#475569"],
+        Silver: ["#cbd5e1", "#e2e8f0"],
+        White: ["#f1f5f9", "#cbd5e1"],
+        Blonde: ["#facc15", "#eab308"],
+        Blue: ["#38bdf8", "#2563eb"],
+        Pink: ["#f472b6", "#db2777"],
+        Red: ["#f87171", "#dc2626"],
+        Green: ["#4ade80", "#16a34a"],
+        Purple: ["#c084fc", "#7e22ce"],
+        Brown: ["#b45309", "#78350f"],
+        Orange: ["#fb923c", "#ea580c"],
+        Gray: ["#94a3b8", "#64748b"],
+        Platinum: ["#e2e8f0", "#a855f7"]
+      };
+
+      let aura = "#a855f7"; // Default Royal Amethyst
+      if (char.authority !== "None") aura = "#e11d48"; // Witch Factor Crimson
+      else if (char.divineProtection !== "None") aura = "#f59e0b"; // Divine Gold
+      else if (hasUsableMagic(char.magic)) aura = "#0ea5e9"; // Mana Sky Blue
+
+      const pair = hairColors[char.hair] || ["#a855f7", "#6d28d9"];
+      return { primary: pair[0], secondary: pair[1], aura };
+    }
+
+    // Draw high-detail procedural Royal Monogram Crest on any canvas
+    function drawProceduralPortrait(canvas, char) {
+      if (!canvas || !char) return;
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      const { primary, secondary, aura } = getCharacterPalette(char);
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Background obsidian radial gradient
+      const bg = ctx.createRadialGradient(w * 0.5, h * 0.35, w * 0.08, w * 0.5, h * 0.5, w * 0.72);
+      bg.addColorStop(0, secondary);
+      bg.addColorStop(0.55, "#19152b");
+      bg.addColorStop(1, "#07060d");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      // Outer magic/authority geometric ring
+      ctx.save();
+      ctx.strokeStyle = aura;
+      ctx.lineWidth = Math.max(2, w * 0.022);
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.5, w * 0.41, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Rotated square diamond rune inside ring
+      ctx.translate(w * 0.5, h * 0.5);
+      ctx.rotate(Math.PI / 4);
+      ctx.strokeStyle = primary;
+      ctx.lineWidth = Math.max(1.5, w * 0.014);
+      ctx.globalAlpha = 0.55;
+      const box = w * 0.54;
+      ctx.strokeRect(-box / 2, -box / 2, box, box);
+      ctx.restore();
+
+      // Silhouette bust shape
+      ctx.save();
+      ctx.fillStyle = "rgba(13, 11, 22, 0.72)";
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.42, w * 0.17, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(w * 0.5, h * 0.84, w * 0.31, h * 0.24, 0, Math.PI, 0);
+      ctx.fill();
+      ctx.restore();
+
+      // Monogram Initials
+      const words = char.name.replace(/[()]/g, "").split(" ").filter(Boolean);
+      const initials = words.length >= 2
+        ? (words[0][0] + words[words.length - 1][0]).toUpperCase()
+        : char.name.slice(0, 2).toUpperCase();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `800 ${Math.round(w * 0.28)}px Cinzel, serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.shadowColor = aura;
+      ctx.shadowBlur = 10;
+      ctx.fillText(initials, w * 0.5, h * 0.52);
+      ctx.shadowBlur = 0;
+
+      // Arc badge at bottom
+      ctx.fillStyle = "rgba(7, 6, 13, 0.85)";
+      ctx.fillRect(0, h * 0.81, w, h * 0.19);
+      ctx.fillStyle = "#fde68a";
+      ctx.font = `700 ${Math.max(9, Math.round(w * 0.105))}px JetBrains Mono, monospace`;
+      ctx.fillText(`ARC ${char.debutArc}`, w * 0.5, h * 0.905);
+    }
+
+    // Resolve image (Manifest -> Optional Wiki -> Procedural Crest) and render to target canvas
+    async function renderCharacterToCanvas(canvas, char, onComplete) {
+      if (!canvas || !char) return;
+      // Draw procedural portrait immediately so there is zero blank flash
+      drawProceduralPortrait(canvas, char);
+
+      const manifestUrl = char.wikiSlug ? portraitManifest[char.wikiSlug] : null;
+      if (manifestUrl) {
+        loadImageOntoCanvas(canvas, manifestUrl, char, onComplete);
+        return;
+      }
+
+      if (useWikiFallback && char.wikiSlug) {
+        if (wikiImageCache[char.wikiSlug]) {
+          loadImageOntoCanvas(canvas, wikiImageCache[char.wikiSlug], char, onComplete);
+          return;
+        }
+        try {
+          const apiUrl = `https://rezero.fandom.com/api.php?action=query&titles=${encodeURIComponent(char.wikiSlug)}&prop=pageimages&format=json&origin=*&pithumbsize=300`;
+          const res = await fetch(apiUrl);
+          const data = await res.json();
+          const pages = data?.query?.pages || {};
+          for (const key of Object.keys(pages)) {
+            const src = pages[key]?.thumbnail?.source;
+            if (src) {
+              wikiImageCache[char.wikiSlug] = src;
+              loadImageOntoCanvas(canvas, src, char, onComplete);
+              return;
+            }
+          }
+        } catch (e) {
+          // Keep procedural portrait
+        }
+      }
+
+      if (onComplete) onComplete();
+    }
+
+    function loadImageOntoCanvas(canvas, url, char, onComplete) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Cover-fit crop focusing upper-center portrait
+        const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+        const drawW = img.width * scale;
+        const drawH = img.height * scale;
+        const dx = (canvas.width - drawW) / 2;
+        const dy = Math.min(0, (canvas.height - drawH) * 0.2);
+        ctx.drawImage(img, dx, dy, drawW, drawH);
+        if (onComplete) onComplete();
+      };
+      img.onerror = () => {
+        drawProceduralPortrait(canvas, char);
+        if (onComplete) onComplete();
+      };
+      img.src = url;
+    }
+
+    /**
+     * =========================================================================
+     * 5. GAME STATE, EDITION SCOPES, DAILY SEEDING & PERSISTENCE
+     * =========================================================================
+     */
+    const STATE_KEY = "rezerodle_v2_separated_powers";
+
+    let state = {
+      mode: "daily", // 'daily' | 'unlimited' | 'quote' | 'image' | 'codex'
+      edition: "full", // 'anime' | 'ln1_6' | 'ln6' | 'ln7_10' | 'full'
+      dailySolvedToday: false,
+      dailyStreak: 0,
+      lastSolvedDate: null,
+      // Per-edition daily guesses & target
+      dailyProgress: {}, // { [edition]: { dateStr, targetId, guessIds: [], solved: false } }
+      // Unlimited state
+      unlimitedTargetId: null,
+      unlimitedGuessIds: [],
+      unlimitedSolved: false,
+      // Quote challenge state
+      quoteChallengeId: null,
+      quoteGuessIds: [],
+      quoteSolved: false,
+      quoteShowContext: false,
+      // Image challenge state
+      imageTargetId: null,
+      imageGuessIds: [],
+      imageSolved: false
+    };
+
+    function getTodayDateString() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, "0");
+      const d = String(now.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function getPoolForEdition(edition) {
+      switch (edition) {
+        case "anime":
+          return CHARACTERS.filter(c => c.debutArc >= 1 && c.debutArc <= 5);
+        case "ln1_6":
+          return CHARACTERS.filter(c => c.debutArc >= 1 && c.debutArc <= 6);
+        case "ln6":
+          return CHARACTERS.filter(c => c.debutArc === 6);
+        case "ln7_10":
+          return CHARACTERS.filter(c => c.debutArc >= 7 && c.debutArc <= 10);
+        case "full":
+        default:
+          return CHARACTERS.slice();
+      }
+    }
+
+    function getQuotesForEdition(edition) {
+      const poolIds = new Set(getPoolForEdition(edition).map(c => c.id));
+      const filtered = QUOTES_DATABASE.filter(q => poolIds.has(q.characterId));
+      return filtered.length > 0 ? filtered : QUOTES_DATABASE;
+    }
+
+    // Deterministic daily hash from date + edition
+    function getSeededIndex(seedStr, max) {
+      let hash = 2166136261;
+      for (let i = 0; i < seedStr.length; i++) {
+        hash ^= seedStr.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return Math.abs(hash) % max;
+    }
+
+    function loadSavedState() {
+      try {
+        const raw = localStorage.getItem(STATE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          state = { ...state, ...parsed };
+        }
+      } catch (e) {
+        // Ignore storage errors
+      }
+      const today = getTodayDateString();
+      if (state.lastSolvedDate !== today) {
+        state.dailySolvedToday = false;
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STATE_KEY, JSON.stringify(state));
+      } catch (e) {
+        // Ignore storage errors
+      }
+    }
+
+    function ensureDailyRecord(edition) {
+      const today = getTodayDateString();
+      const pool = getPoolForEdition(edition);
+      const existing = state.dailyProgress[edition];
+
+      if (!existing || existing.dateStr !== today || !pool.some(c => c.id === existing.targetId)) {
+        const idx = getSeededIndex(`${today}::${edition}`, pool.length);
+        state.dailyProgress[edition] = {
+          dateStr: today,
+          targetId: pool[idx].id,
+          guessIds: [],
+          solved: false
+        };
+        saveState();
+      }
+      return state.dailyProgress[edition];
+    }
+
+    function getCharacterById(id) {
+      return CHARACTERS.find(c => c.id === id);
+    }
+
+    /**
+     * =========================================================================
+     * 6. UI HELPERS & TOAST NOTIFICATIONS (NO ALERT / CONFIRM)
+     * =========================================================================
+     */
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      const styles = {
+        success: "bg-emerald-950/95 border-emerald-400 text-emerald-100",
+        error: "bg-rose-950/95 border-rose-400 text-rose-100",
+        info: "bg-obsidian-900/95 border-royalGold-400 text-slate-100"
+      };
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-2xl text-xs sm:text-sm font-medium transition-all duration-300 ${styles[type] || styles.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(8px)";
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    function copyTextToClipboard(text) {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand("copy");
+        showToast("Copied to clipboard!", "success");
+      } catch (err) {
+        showToast("Unable to copy automatically.", "error");
+      }
+      document.body.removeChild(textarea);
+    }
+
+    /**
+     * =========================================================================
+     * 7. WORDLE GAMEPLAY RENDERING & LOGIC (DAILY + UNLIMITED)
+     * =========================================================================
+     */
+    function getActiveWordleContext() {
+      const pool = getPoolForEdition(state.edition);
+      if (state.mode === "daily") {
+        const rec = ensureDailyRecord(state.edition);
+        return {
+          isDaily: true,
+          pool,
+          target: getCharacterById(rec.targetId),
+          guessIds: rec.guessIds,
+          solved: rec.solved,
+          record: rec
+        };
+      } else {
+        if (!state.unlimitedTargetId || !pool.some(c => c.id === state.unlimitedTargetId)) {
+          const rand = pool[Math.floor(Math.random() * pool.length)];
+          state.unlimitedTargetId = rand.id;
+          state.unlimitedGuessIds = [];
+          state.unlimitedSolved = false;
+          saveState();
+        }
+        return {
+          isDaily: false,
+          pool,
+          target: getCharacterById(state.unlimitedTargetId),
+          guessIds: state.unlimitedGuessIds,
+          solved: state.unlimitedSolved,
+          record: null
+        };
+      }
+    }
+
+    function renderWordleView() {
+      const ctx = getActiveWordleContext();
+      const { isDaily, target, guessIds, solved } = ctx;
+
+      // Header text & buttons
+      document.getElementById("wordle-mode-title").textContent = isDaily
+        ? "Daily Classic Deduction"
+        : "Unlimited Random Deduction";
+      document.getElementById("wordle-date-pill").textContent = isDaily
+        ? getTodayDateString()
+        : "UNLIMITED";
+      document.getElementById("new-unlimited-btn").classList.toggle("hidden", isDaily);
+      document.getElementById("guess-counter").textContent = guessIds.length;
+
+      // Calculate incorrect guesses for Progressive Hints (every 3 incorrect guesses)
+      const wrongCount = guessIds.filter(id => id !== target.id).length;
+      renderProgressiveHints(target, wrongCount, solved);
+
+      // Toggle Input vs Victory Card
+      const inputArea = document.getElementById("wordle-input-area");
+      const victoryCard = document.getElementById("wordle-victory-card");
+
+      if (solved) {
+        inputArea.classList.add("hidden");
+        victoryCard.classList.remove("hidden");
+        document.getElementById("victory-char-name").textContent = `${target.name} (Arc ${target.debutArc})`;
+        document.getElementById("victory-char-summary").textContent = `${target.title} — ${target.race} • ${target.camp}`;
+
+        const pillsEl = document.getElementById("victory-power-pills");
+        pillsEl.innerHTML = `
+          <span class="text-[11px] px-2.5 py-1 rounded-lg bg-sky-950/90 border border-sky-500/40 text-sky-200"><strong>Magic:</strong> ${escapeHtml(target.magic)}</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-lg bg-amber-950/90 border border-amber-500/40 text-amber-200"><strong>Divine Protection:</strong> ${escapeHtml(target.divineProtection)}</span>
+          <span class="text-[11px] px-2.5 py-1 rounded-lg bg-rose-950/90 border border-rose-500/40 text-rose-200"><strong>Authority:</strong> ${escapeHtml(target.authority)}</span>
+        `;
+
+        const vCanvas = document.getElementById("victory-portrait-canvas");
+        renderCharacterToCanvas(vCanvas, target);
+      } else {
+        inputArea.classList.remove("hidden");
+        victoryCard.classList.add("hidden");
+      }
+
+      // Render 9-Column Table Rows (newest guess at top)
+      const tbody = document.getElementById("wordle-guesses-tbody");
+      const emptyState = document.getElementById("wordle-empty-state");
+      tbody.innerHTML = "";
+
+      if (guessIds.length === 0) {
+        emptyState.classList.remove("hidden");
+      } else {
+        emptyState.classList.add("hidden");
+        const reversed = [...guessIds].reverse();
+        reversed.forEach((gId, rowIdx) => {
+          const guessChar = getCharacterById(gId);
+          if (!guessChar) return;
+          const evalRes = evaluateGuess(guessChar, target);
+          const tr = buildGuessTableRow(guessChar, evalRes, rowIdx === 0);
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    function renderProgressiveHints(target, wrongCount, solved) {
+      const tiers = [
+        { threshold: 3, boxId: "hint-box-3", pillId: "hint-pill-3", textId: "hint-text-3", label: "3: Quote" },
+        { threshold: 6, boxId: "hint-box-6", pillId: "hint-pill-6", textId: "hint-text-6", label: "6: Title & Role" },
+        { threshold: 9, boxId: "hint-box-9", pillId: "hint-pill-9", textId: "hint-text-9", label: "9: Lore Clue" },
+        { threshold: 12, boxId: "hint-box-12", pillId: "hint-pill-12", textId: "hint-text-12", label: "12: Initials" }
+      ];
+
+      // Find character quote from QUOTES_DATABASE or fallback to title/lore quote
+      const charQuoteObj = QUOTES_DATABASE.find(q => q.characterId === target.id);
+      const quoteStr = charQuoteObj
+        ? `"${charQuoteObj.quote}"`
+        : `"Known across the world as ${target.title}."`;
+
+      // Tier 4 initials & letter count
+      const cleanName = target.name.replace(/\([^)]*\)/g, "").trim();
+      const initials = cleanName
+        .split(/\s+/)
+        .map(part => part[0].toUpperCase() + ".")
+        .join(" ");
+      const letterCount = cleanName.replace(/[^A-Za-z]/g, "").length;
+
+      const hintContents = {
+        3: quoteStr,
+        6: `${target.title} — ${target.role}`,
+        9: target.lore,
+        12: `Initials: ${initials} (${letterCount} letters)`
+      };
+
+      let nextThreshold = null;
+      for (const t of tiers) {
+        if (wrongCount < t.threshold && !solved) {
+          nextThreshold = t.threshold;
+          break;
+        }
+      }
+
+      const statusEl = document.getElementById("next-hint-status");
+      if (solved) {
+        statusEl.textContent = "(Target deduced!)";
+      } else if (nextThreshold) {
+        const remaining = nextThreshold - wrongCount;
+        statusEl.textContent = `(Next hint in ${remaining} wrong guess${remaining === 1 ? "" : "es"})`;
+      } else {
+        statusEl.textContent = "(All 4 hint tiers unlocked!)";
+      }
+
+      tiers.forEach(t => {
+        const unlocked = solved || wrongCount >= t.threshold;
+        const box = document.getElementById(t.boxId);
+        const pill = document.getElementById(t.pillId);
+        const text = document.getElementById(t.textId);
+
+        if (unlocked) {
+          box.className = "rounded-xl bg-amethyst-950/60 border border-amethyst-500/50 p-3 text-xs transition";
+          pill.className = "px-2 py-0.5 rounded-md bg-amethyst-700/60 border border-amethyst-400/50 text-white font-semibold";
+          text.className = "text-slate-100 font-medium leading-relaxed";
+          text.textContent = hintContents[t.threshold];
+        } else {
+          box.className = "rounded-xl bg-obsidian-850/90 border border-obsidian-700/80 p-3 text-xs transition";
+          pill.className = "px-2 py-0.5 rounded-md bg-obsidian-850 border border-obsidian-700 text-slate-500";
+          text.className = "text-slate-500 italic";
+          text.textContent = `Locked — make ${t.threshold} incorrect guesses to unlock.`;
+        }
+      });
+    }
+
+    function cellClass(status) {
+      if (status === "match") return "cell-match";
+      if (status === "partial") return "cell-partial";
+      return "cell-none";
+    }
+
+    function buildGuessTableRow(char, evalRes, animate) {
+      const tr = document.createElement("tr");
+      const animClass = animate ? "animate-tile" : "";
+
+      const cells = [
+        // 1. Character (Portrait + Name)
+        `<td class="rounded-xl border p-2 ${evalRes.characterMatch ? "cell-match" : "bg-obsidian-850 border-obsidian-700 text-white"} ${animClass}" style="animation-delay: 0ms">
+          <div class="flex items-center gap-2 text-left">
+            <canvas data-char-portrait="${char.id}" width="44" height="44" class="w-10 h-10 rounded-lg border border-white/20 shrink-0"></canvas>
+            <span class="font-bold text-xs leading-tight">${escapeHtml(char.name)}</span>
+          </div>
+        </td>`,
+        // 2. Gender
+        `<td class="rounded-xl border p-2 text-xs font-semibold ${cellClass(evalRes.gender)} ${animClass}" style="animation-delay: 50ms">
+          ${escapeHtml(char.gender)}
+        </td>`,
+        // 3. Race
+        `<td class="rounded-xl border p-2 text-xs font-semibold leading-snug ${cellClass(evalRes.race)} ${animClass}" style="animation-delay: 100ms">
+          ${escapeHtml(char.race)}
+        </td>`,
+        // 4. Camp
+        `<td class="rounded-xl border p-2 text-xs font-semibold leading-snug ${cellClass(evalRes.camp)} ${animClass}" style="animation-delay: 150ms">
+          ${escapeHtml(char.camp)}
+        </td>`,
+        // 5. Hair
+        `<td class="rounded-xl border p-2 text-xs font-semibold ${cellClass(evalRes.hair)} ${animClass}" style="animation-delay: 200ms">
+          ${escapeHtml(char.hair)}
+        </td>`,
+        // 6. Magic
+        `<td class="rounded-xl border p-2 text-xs font-semibold leading-snug ${cellClass(evalRes.magic)} ${animClass}" style="animation-delay: 250ms">
+          ${escapeHtml(char.magic)}
+        </td>`,
+        // 7. Divine Protection
+        `<td class="rounded-xl border p-2 text-xs font-semibold leading-snug ${cellClass(evalRes.divineProtection)} ${animClass}" style="animation-delay: 300ms">
+          ${escapeHtml(char.divineProtection)}
+        </td>`,
+        // 8. Authority
+        `<td class="rounded-xl border p-2 text-xs font-semibold leading-snug ${cellClass(evalRes.authority)} ${animClass}" style="animation-delay: 350ms">
+          ${escapeHtml(char.authority)}
+        </td>`,
+        // 9. Debut Arc
+        `<td class="rounded-xl border p-2 text-xs font-bold font-mono ${cellClass(evalRes.debut)} ${animClass}" style="animation-delay: 400ms">
+          Arc ${char.debutArc} ${evalRes.debutArrow ? `<span class="text-sm ml-0.5">${evalRes.debutArrow}</span>` : ""}
+        </td>`
+      ];
+
+      tr.innerHTML = cells.join("");
+
+      // Render character portrait canvas inside row
+      const portraitCanvas = tr.querySelector(`canvas[data-char-portrait="${char.id}"]`);
+      renderCharacterToCanvas(portraitCanvas, char);
+
+      return tr;
+    }
+
+    function submitWordleGuess(charId) {
+      const ctx = getActiveWordleContext();
+      if (ctx.solved) return;
+      if (ctx.guessIds.includes(charId)) {
+        showToast("You already guessed that character!", "info");
+        return;
+      }
+
+      const guessChar = getCharacterById(charId);
+      if (!guessChar) return;
+
+      ctx.guessIds.push(charId);
+      const isWin = charId === ctx.target.id;
+
+      if (isWin) {
+        if (ctx.isDaily) {
+          ctx.record.solved = true;
+          const today = getTodayDateString();
+          if (state.lastSolvedDate !== today) {
+            state.dailyStreak = (state.dailyStreak || 0) + 1;
+            state.lastSolvedDate = today;
+          }
+          state.dailySolvedToday = true;
+          showToast(`Victory! You deduced ${ctx.target.name} and unlocked all bonus modes!`, "success");
+        } else {
+          state.unlimitedSolved = true;
+          showToast(`Correct! The mystery character was ${ctx.target.name}!`, "success");
+        }
+      }
+
+      saveState();
+      updateHeaderAndLocks();
+      renderWordleView();
+    }
+
+    /**
+     * Generate 8-Attribute Emoji Share Grid:
+     * Gender, Race, Camp, Hair, Magic, Divine Protection, Authority, Debut
+     */
+    function buildShareEmojiText() {
+      const ctx = getActiveWordleContext();
+      const { isDaily, target, guessIds } = ctx;
+      const editionLabels = {
+        anime: "Anime (Arcs 1–5)",
+        ln1_6: "LN (Arcs 1–6)",
+        ln6: "LN (Arc 6 Only)",
+        ln7_10: "LN (Arcs 7–10)",
+        full: "Full LN (Arcs 1–10)"
+      };
+
+      const emojiFor = status => (status === "match" ? "🟩" : status === "partial" ? "🟨" : "⬛");
+
+      const lines = guessIds.map(gId => {
+        const g = getCharacterById(gId);
+        const ev = evaluateGuess(g, target);
+        return [
+          emojiFor(ev.gender),
+          emojiFor(ev.race),
+          emojiFor(ev.camp),
+          emojiFor(ev.hair),
+          emojiFor(ev.magic),
+          emojiFor(ev.divineProtection),
+          emojiFor(ev.authority),
+          emojiFor(ev.debut)
+        ].join("");
+      });
+
+      const titleLine = isDaily
+        ? `Re:Zerodle (${getTodayDateString()}) — ${guessIds.length} Guess${guessIds.length === 1 ? "" : "es"}`
+        : `Re:Zerodle Unlimited — ${guessIds.length} Guess${guessIds.length === 1 ? "" : "es"}`;
+
+      return [
+        titleLine,
+        `Scope: ${editionLabels[state.edition]}`,
+        `👤🧬🏰💇✨🛡️👑📖`,
+        ...lines
+      ].join("\n");
+    }
+
+    /**
+     * =========================================================================
+     * 8. AUTOCOMPLETE SEARCH COMPONENT
+     * =========================================================================
+     */
+    function setupCharacterAutocomplete(inputId, dropdownId, submitBtnId, getPoolFn, getExcludedIdsFn, onSelectFn) {
+      const input = document.getElementById(inputId);
+      const dropdown = document.getElementById(dropdownId);
+      const submitBtn = document.getElementById(submitBtnId);
+      let currentMatches = [];
+
+      function renderDropdown() {
+        const query = input.value.trim().toLowerCase();
+        const pool = getPoolFn();
+        const excluded = new Set(getExcludedIdsFn());
+
+        const filtered = pool.filter(c => {
+          if (excluded.has(c.id)) return false;
+          if (!query) return true;
+          const inName = c.name.toLowerCase().includes(query);
+          const inAlias = (c.aliases || []).some(a => a.toLowerCase().includes(query));
+          return inName || inAlias;
+        });
+
+        currentMatches = filtered.slice(0, 14);
+        dropdown.innerHTML = "";
+
+        if (currentMatches.length === 0) {
+          dropdown.innerHTML = `<div class="px-4 py-3 text-xs text-slate-400">No matching characters in current Spoiler Scope.</div>`;
+          dropdown.classList.remove("hidden");
+          return;
+        }
+
+        currentMatches.forEach(char => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "w-full px-3.5 py-2.5 text-left hover:bg-amethyst-900/50 flex items-center justify-between gap-2 transition";
+          btn.innerHTML = `
+            <div class="flex items-center gap-2.5 min-w-0">
+              <canvas data-ac-portrait="${char.id}" width="34" height="34" class="w-8 h-8 rounded-lg border border-obsidian-700 shrink-0"></canvas>
+              <div class="truncate">
+                <div class="text-xs sm:text-sm font-semibold text-white truncate">${escapeHtml(char.name)}</div>
+                <div class="text-[11px] text-slate-400 truncate">${escapeHtml(char.race)} • ${escapeHtml(char.camp)}</div>
+              </div>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-obsidian-800 border border-obsidian-700 text-royalGold-300 shrink-0">
+              Arc ${char.debutArc}
+            </span>
+          `;
+          btn.addEventListener("click", () => {
+            input.value = "";
+            dropdown.classList.add("hidden");
+            onSelectFn(char.id);
+          });
+          dropdown.appendChild(btn);
+
+          const c = btn.querySelector(`canvas[data-ac-portrait="${char.id}"]`);
+          renderCharacterToCanvas(c, char);
+        });
+
+        dropdown.classList.remove("hidden");
+      }
+
+      input.addEventListener("input", renderDropdown);
+      input.addEventListener("focus", renderDropdown);
+
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter" && currentMatches.length > 0) {
+          e.preventDefault();
+          const chosen = currentMatches[0];
+          input.value = "";
+          dropdown.classList.add("hidden");
+          onSelectFn(chosen.id);
+        }
+      });
+
+      submitBtn.addEventListener("click", () => {
+        if (currentMatches.length > 0) {
+          const chosen = currentMatches[0];
+          input.value = "";
+          dropdown.classList.add("hidden");
+          onSelectFn(chosen.id);
+        } else {
+          showToast("Select a valid character from the list.", "info");
+        }
+      });
+
+      document.addEventListener("click", e => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.classList.add("hidden");
+        }
+      });
+    }
+
+    /**
+     * =========================================================================
+     * 9. BONUS MODE I: GUESS BY QUOTE (100 QUOTES ARCHIVE)
+     * =========================================================================
+     */
+    function pickNewQuoteChallenge() {
+      const availableQuotes = getQuotesForEdition(state.edition);
+      const rand = availableQuotes[Math.floor(Math.random() * availableQuotes.length)];
+      state.quoteChallengeId = rand.id;
+      state.quoteGuessIds = [];
+      state.quoteSolved = false;
+      state.quoteShowContext = false;
+      saveState();
+      renderQuoteView();
+    }
+
+    function renderQuoteView() {
+      const availableQuotes = getQuotesForEdition(state.edition);
+      let quoteObj = availableQuotes.find(q => q.id === state.quoteChallengeId);
+      if (!quoteObj) {
+        quoteObj = availableQuotes[0];
+        state.quoteChallengeId = quoteObj.id;
+      }
+      const targetChar = getCharacterById(quoteObj.characterId);
+
+      document.getElementById("quote-challenge-text").textContent = quoteObj.quote;
+      const ctxEl = document.getElementById("quote-challenge-context");
+      ctxEl.textContent = `Scene Context: ${quoteObj.context}`;
+      ctxEl.classList.toggle("hidden", !state.quoteShowContext);
+
+      const inputWrapper = document.getElementById("quote-input-wrapper");
+      const resultBanner = document.getElementById("quote-result-banner");
+
+      if (state.quoteSolved) {
+        inputWrapper.classList.add("hidden");
+        resultBanner.classList.remove("hidden");
+        resultBanner.innerHTML = `
+          <div class="text-xs font-mono uppercase text-emerald-300">Correct Speaker!</div>
+          <div class="font-royal text-lg font-bold text-white mt-0.5">${escapeHtml(targetChar.name)}</div>
+          <div class="text-xs text-slate-300 mt-1">${escapeHtml(quoteObj.context)} • Magic: ${escapeHtml(targetChar.magic)} | DP: ${escapeHtml(targetChar.divineProtection)} | Auth: ${escapeHtml(targetChar.authority)}</div>
+        `;
+      } else {
+        inputWrapper.classList.remove("hidden");
+        resultBanner.classList.add("hidden");
+      }
+
+      const listEl = document.getElementById("quote-guesses-list");
+      listEl.innerHTML = "";
+      [...state.quoteGuessIds].reverse().forEach(gId => {
+        const g = getCharacterById(gId);
+        if (!g) return;
+        const isRight = g.id === targetChar.id;
+        const row = document.createElement("div");
+        row.className = `px-4 py-2.5 rounded-xl border flex flex-wrap items-center justify-between gap-2 text-xs ${
+          isRight
+            ? "bg-emerald-950/80 border-emerald-400 text-emerald-100"
+            : "bg-obsidian-850 border-obsidian-700 text-slate-300"
+        }`;
+        row.innerHTML = `
+          <span class="font-bold text-sm">${isRight ? "✓" : "✕"} ${escapeHtml(g.name)}</span>
+          <span class="font-mono text-[11px] text-slate-400">${escapeHtml(g.camp)} • Arc ${g.debutArc} • Magic: ${escapeHtml(g.magic)}</span>
+        `;
+        listEl.appendChild(row);
+      });
+    }
+
+    function submitQuoteGuess(charId) {
+      if (state.quoteSolved) return;
+      if (state.quoteGuessIds.includes(charId)) {
+        showToast("Already guessed that speaker!", "info");
+        return;
+      }
+      const quoteObj = QUOTES_DATABASE.find(q => q.id === state.quoteChallengeId);
+      state.quoteGuessIds.push(charId);
+      if (quoteObj && charId === quoteObj.characterId) {
+        state.quoteSolved = true;
+        showToast("Spot on! You identified the speaker!", "success");
+      }
+      saveState();
+      renderQuoteView();
+    }
+
+    /**
+     * =========================================================================
+     * 10. BONUS MODE II: GUESS BY IMAGE (PROGRESSIVE DE-ZOOM & DE-PIXELATE)
+     * =========================================================================
+     */
+    let offscreenPortraitCanvas = null;
+
+    function pickNewImageChallenge() {
+      const pool = getPoolForEdition(state.edition);
+      const rand = pool[Math.floor(Math.random() * pool.length)];
+      state.imageTargetId = rand.id;
+      state.imageGuessIds = [];
+      state.imageSolved = false;
+      saveState();
+      renderImageView();
+    }
+
+    function renderPixelatedZoomCanvas(sourceCanvas, destCanvas, wrongCount, solved) {
+      const dCtx = destCanvas.getContext("2d");
+      const w = destCanvas.width;
+      const h = destCanvas.height;
+
+      // Progressive zoom and pixel block reduction on each wrong guess
+      const zoom = solved ? 1.0 : Math.max(1.0, 3.2 - wrongCount * 0.38);
+      const pixelBlock = solved ? 1 : Math.max(1, Math.round(24 * Math.pow(0.74, wrongCount)));
+
+      document.getElementById("image-zoom-label").textContent = `${zoom.toFixed(1)}x`;
+      document.getElementById("image-pixel-label").textContent = `${pixelBlock}px`;
+      document.getElementById("image-wrong-label").textContent = wrongCount;
+
+      dCtx.clearRect(0, 0, w, h);
+
+      // Compute zoomed source crop centered slightly toward upper middle
+      const srcW = sourceCanvas.width / zoom;
+      const srcH = sourceCanvas.height / zoom;
+      const srcX = (sourceCanvas.width - srcW) * 0.5;
+      const srcY = (sourceCanvas.height - srcH) * 0.42;
+
+      if (pixelBlock <= 1) {
+        dCtx.imageSmoothingEnabled = true;
+        dCtx.drawImage(sourceCanvas, srcX, srcY, srcW, srcH, 0, 0, w, h);
+        return;
+      }
+
+      // Pixelation step via tiny intermediate canvas
+      const tinyW = Math.max(4, Math.floor(w / pixelBlock));
+      const tinyH = Math.max(4, Math.floor(h / pixelBlock));
+      const tiny = document.createElement("canvas");
+      tiny.width = tinyW;
+      tiny.height = tinyH;
+      const tCtx = tiny.getContext("2d");
+      tCtx.imageSmoothingEnabled = false;
+      tCtx.drawImage(sourceCanvas, srcX, srcY, srcW, srcH, 0, 0, tinyW, tinyH);
+
+      dCtx.imageSmoothingEnabled = false;
+      dCtx.drawImage(tiny, 0, 0, tinyW, tinyH, 0, 0, w, h);
+    }
+
+    function renderImageView() {
+      const pool = getPoolForEdition(state.edition);
+      let targetChar = getCharacterById(state.imageTargetId);
+      if (!targetChar || !pool.some(c => c.id === targetChar.id)) {
+        targetChar = pool[0];
+        state.imageTargetId = targetChar.id;
+      }
+
+      const wrongCount = state.imageGuessIds.filter(id => id !== targetChar.id).length;
+      const destCanvas = document.getElementById("image-challenge-canvas");
+
+      if (!offscreenPortraitCanvas) {
+        offscreenPortraitCanvas = document.createElement("canvas");
+        offscreenPortraitCanvas.width = 260;
+        offscreenPortraitCanvas.height = 260;
+      }
+
+      renderCharacterToCanvas(offscreenPortraitCanvas, targetChar, () => {
+        renderPixelatedZoomCanvas(offscreenPortraitCanvas, destCanvas, wrongCount, state.imageSolved);
+      });
+      renderPixelatedZoomCanvas(offscreenPortraitCanvas, destCanvas, wrongCount, state.imageSolved);
+
+      const inputWrapper = document.getElementById("image-input-wrapper");
+      const resultBanner = document.getElementById("image-result-banner");
+
+      if (state.imageSolved) {
+        inputWrapper.classList.add("hidden");
+        resultBanner.classList.remove("hidden");
+        resultBanner.innerHTML = `
+          <div class="text-xs font-mono uppercase text-emerald-300">Portrait Identified!</div>
+          <div class="font-royal text-lg font-bold text-white mt-0.5">${escapeHtml(targetChar.name)}</div>
+          <div class="text-xs text-slate-300 mt-1">Magic: ${escapeHtml(targetChar.magic)} • Divine Protection: ${escapeHtml(targetChar.divineProtection)} • Authority: ${escapeHtml(targetChar.authority)}</div>
+        `;
+      } else {
+        inputWrapper.classList.remove("hidden");
+        resultBanner.classList.add("hidden");
+      }
+
+      const guessesEl = document.getElementById("image-guesses-list");
+      guessesEl.innerHTML = "";
+      state.imageGuessIds.forEach(gId => {
+        const g = getCharacterById(gId);
+        if (!g) return;
+        const isRight = g.id === targetChar.id;
+        const badge = document.createElement("span");
+        badge.className = `px-3 py-1 rounded-full text-xs font-semibold border ${
+          isRight
+            ? "bg-emerald-950 border-emerald-400 text-emerald-200"
+            : "bg-obsidian-850 border-obsidian-700 text-slate-400"
+        }`;
+        badge.textContent = `${isRight ? "✓" : "✕"} ${g.name}`;
+        guessesEl.appendChild(badge);
+      });
+    }
+
+    function submitImageGuess(charId) {
+      if (state.imageSolved) return;
+      if (state.imageGuessIds.includes(charId)) {
+        showToast("Already guessed that character!", "info");
+        return;
+      }
+      state.imageGuessIds.push(charId);
+      if (charId === state.imageTargetId) {
+        state.imageSolved = true;
+        showToast("Clairvoyance! You identified the portrait!", "success");
+      }
+      saveState();
+      renderImageView();
+    }
+
+    /**
+     * =========================================================================
+     * 11. ROSTER & QUOTES CODEX (SEPARATE MAGIC / DP / AUTHORITY PILLS & SEARCH)
+     * =========================================================================
+     */
+    let codexSubTab = "roster"; // 'roster' | 'quotes'
+
+    function renderCodexView() {
+      const search = document.getElementById("codex-search-input").value.trim().toLowerCase();
+      const arcFilter = document.getElementById("codex-arc-filter").value;
+
+      // Filter Characters (searchable by Name, Race, Camp, Hair, Magic, Divine Protection, Authority, Title)
+      const filteredChars = CHARACTERS.filter(c => {
+        if (arcFilter !== "all" && String(c.debutArc) !== arcFilter) return false;
+        if (!search) return true;
+        const haystack = [
+          c.name,
+          ...(c.aliases || []),
+          c.gender,
+          c.race,
+          c.camp,
+          c.hair,
+          c.magic,
+          c.divineProtection,
+          c.authority,
+          c.title
+        ]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(search);
+      });
+
+      // Filter Quotes (searchable by Quote, Context, Character Name, Magic, Divine Protection, Authority)
+      const filteredQuotes = QUOTES_DATABASE.filter(q => {
+        if (arcFilter !== "all" && String(q.arc) !== arcFilter) return false;
+        const speaker = getCharacterById(q.characterId);
+        if (!search) return true;
+        const haystack = [
+          q.quote,
+          q.context,
+          speaker ? speaker.name : "",
+          speaker ? speaker.magic : "",
+          speaker ? speaker.divineProtection : "",
+          speaker ? speaker.authority : ""
+        ]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(search);
+      });
+
+      document.getElementById("codex-char-count").textContent = filteredChars.length;
+      document.getElementById("codex-quote-count").textContent = filteredQuotes.length;
+
+      const rosterGrid = document.getElementById("codex-roster-grid");
+      const quotesList = document.getElementById("codex-quotes-list");
+
+      if (codexSubTab === "roster") {
+        rosterGrid.classList.remove("hidden");
+        quotesList.classList.add("hidden");
+        rosterGrid.innerHTML = "";
+
+        filteredChars.forEach(char => {
+          const card = document.createElement("article");
+          card.className = "rounded-2xl bg-obsidian-850/95 border border-obsidian-700 hover:border-amethyst-500/50 p-4 flex flex-col justify-between gap-3 transition shadow-lg";
+          card.innerHTML = `
+            <div>
+              <div class="flex items-start gap-3">
+                <canvas data-codex-portrait="${char.id}" width="54" height="54" class="w-13 h-13 rounded-xl border border-royalGold-400/40 shrink-0"></canvas>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-1.5">
+                    <h3 class="font-royal text-sm sm:text-base font-bold text-white truncate">${escapeHtml(char.name)}</h3>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-obsidian-950 border border-royalGold-500/40 text-royalGold-300 shrink-0">Arc ${char.debutArc}</span>
+                  </div>
+                  <p class="text-[11px] text-amethyst-300 truncate mt-0.5">${escapeHtml(char.title)}</p>
+                  <div class="flex flex-wrap gap-1.5 mt-1.5 text-[11px] text-slate-400">
+                    <span>${escapeHtml(char.gender)}</span>
+                    <span>•</span>
+                    <span>${escapeHtml(char.race)}</span>
+                    <span>•</span>
+                    <span>${escapeHtml(char.camp)}</span>
+                    <span>•</span>
+                    <span>Hair: ${escapeHtml(char.hair)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Three Distinct Attribute Rows for Magic, Divine Protection, and Authority -->
+              <div class="mt-3 pt-2.5 border-t border-obsidian-700/70 space-y-1.5 text-xs">
+                <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-sky-950/40 border border-sky-500/25">
+                  <span class="text-[11px] font-semibold uppercase tracking-wider text-sky-300">Magic</span>
+                  <span class="font-medium text-sky-100 text-right">${escapeHtml(char.magic)}</span>
+                </div>
+                <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-amber-950/40 border border-amber-500/25">
+                  <span class="text-[11px] font-semibold uppercase tracking-wider text-amber-300">Divine Protection</span>
+                  <span class="font-medium text-amber-100 text-right">${escapeHtml(char.divineProtection)}</span>
+                </div>
+                <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-rose-950/40 border border-rose-500/25">
+                  <span class="text-[11px] font-semibold uppercase tracking-wider text-rose-300">Authority</span>
+                  <span class="font-medium text-rose-100 text-right">${escapeHtml(char.authority)}</span>
+                </div>
+              </div>
+            </div>
+          `;
+          rosterGrid.appendChild(card);
+
+          const c = card.querySelector(`canvas[data-codex-portrait="${char.id}"]`);
+          renderCharacterToCanvas(c, char);
+        });
+      } else {
+        rosterGrid.classList.add("hidden");
+        quotesList.classList.remove("hidden");
+        quotesList.innerHTML = "";
+
+        filteredQuotes.forEach(q => {
+          const speaker = getCharacterById(q.characterId);
+          const item = document.createElement("article");
+          item.className = "rounded-2xl bg-obsidian-850/95 border border-obsidian-700 p-4 flex flex-col justify-between gap-3";
+          item.innerHTML = `
+            <blockquote class="text-xs sm:text-sm italic text-slate-100 leading-relaxed">
+              “${escapeHtml(q.quote)}”
+            </blockquote>
+            <div class="pt-2.5 border-t border-obsidian-700/70 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+              <div>
+                <span class="font-bold text-royalGold-300">${speaker ? escapeHtml(speaker.name) : "Unknown"}</span>
+                <span class="text-slate-400 ml-1.5">(${escapeHtml(q.context)})</span>
+              </div>
+              ${
+                speaker
+                  ? `<div class="flex flex-wrap gap-1">
+                      <span class="px-1.5 py-0.5 rounded bg-sky-950/70 border border-sky-500/30 text-sky-200">M: ${escapeHtml(speaker.magic)}</span>
+                      <span class="px-1.5 py-0.5 rounded bg-amber-950/70 border border-amber-500/30 text-amber-200">DP: ${escapeHtml(speaker.divineProtection)}</span>
+                      <span class="px-1.5 py-0.5 rounded bg-rose-950/70 border border-rose-500/30 text-rose-200">A: ${escapeHtml(speaker.authority)}</span>
+                    </div>`
+                  : ""
+              }
+            </div>
+          `;
+          quotesList.appendChild(item);
+        });
+      }
+    }
+
+    /**
+     * =========================================================================
+     * 12. NAVIGATION, UNLOCK STATE & EVENT WIRING
+     * =========================================================================
+     */
+    function isBonusUnlocked() {
+      // Unlocked if any daily puzzle has been solved today
+      const today = getTodayDateString();
+      if (state.dailySolvedToday || state.lastSolvedDate === today) return true;
+      return Object.values(state.dailyProgress).some(rec => rec && rec.dateStr === today && rec.solved);
+    }
+
+    function updateHeaderAndLocks() {
+      const pool = getPoolForEdition(state.edition);
+      document.getElementById("active-pool-count").textContent = pool.length;
+      document.getElementById("daily-streak-count").textContent = state.dailyStreak || 0;
+
+      const unlocked = isBonusUnlocked();
+      const dailyRec = ensureDailyRecord(state.edition);
+      const badge = document.getElementById("daily-status-badge");
+      badge.textContent = dailyRec.solved ? "SOLVED ✓" : "ACTIVE";
+      badge.className = dailyRec.solved
+        ? "text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-400/50 text-emerald-300 font-mono"
+        : "text-[10px] px-1.5 py-0.5 rounded bg-obsidian-950/60 text-royalGold-300 font-mono";
+
+      document.querySelectorAll(".mode-tab").forEach(tab => {
+        const m = tab.dataset.mode;
+        const lockIcon = tab.querySelector(".unlock-icon");
+        if (lockIcon) {
+          lockIcon.textContent = unlocked ? "✦" : "🔒";
+        }
+
+        const isActive = state.mode === m;
+        if (isActive) {
+          tab.className =
+            "mode-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-amethyst-600 text-white shadow-lg shadow-amethyst-900/50";
+        } else if (m === "codex") {
+          tab.className =
+            "mode-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-obsidian-850 text-royalGold-300 border border-royalGold-500/30 hover:border-royalGold-400";
+        } else {
+          tab.className =
+            "mode-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-obsidian-850 text-slate-300 border border-obsidian-700 hover:border-amethyst-500/50";
+        }
+      });
+    }
+
+    function switchMode(newMode) {
+      const restrictedModes = ["unlimited", "quote", "image"];
+      if (restrictedModes.includes(newMode) && !isBonusUnlocked()) {
+        showToast("Solve today's Daily Classic Wordle first to unlock Unlimited, Quote, and Image modes!", "info");
+        return;
+      }
+
+      state.mode = newMode;
+      saveState();
+      updateHeaderAndLocks();
+
+      document.getElementById("view-wordle").classList.toggle("hidden", newMode !== "daily" && newMode !== "unlimited");
+      document.getElementById("view-quote").classList.toggle("hidden", newMode !== "quote");
+      document.getElementById("view-image").classList.toggle("hidden", newMode !== "image");
+      document.getElementById("view-codex").classList.toggle("hidden", newMode !== "codex");
+
+      if (newMode === "daily" || newMode === "unlimited") {
+        renderWordleView();
+      } else if (newMode === "quote") {
+        if (!state.quoteChallengeId) pickNewQuoteChallenge();
+        else renderQuoteView();
+      } else if (newMode === "image") {
+        if (!state.imageTargetId) pickNewImageChallenge();
+        else renderImageView();
+      } else if (newMode === "codex") {
+        renderCodexView();
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    /**
+     * =========================================================================
+     * 13. INITIALIZATION ON WINDOW LOAD
+     * =========================================================================
+     */
+    window.addEventListener("DOMContentLoaded", () => {
+      loadSavedState();
+      loadPortraitManifest();
+
+      // Sync Edition Selector
+      const editionSelect = document.getElementById("edition-select");
+      editionSelect.value = state.edition;
+      editionSelect.addEventListener("change", e => {
+        state.edition = e.target.value;
+        // Reset unlimited/quote/image targets so they match the newly chosen edition scope
+        state.unlimitedTargetId = null;
+        state.unlimitedGuessIds = [];
+        state.unlimitedSolved = false;
+        state.quoteChallengeId = null;
+        state.imageTargetId = null;
+        saveState();
+        updateHeaderAndLocks();
+        switchMode(state.mode);
+        showToast(`Spoiler Scope switched to: ${editionSelect.options[editionSelect.selectedIndex].text}`, "info");
+      });
+
+      // Mode Navigation Tabs
+      document.querySelectorAll(".mode-tab").forEach(btn => {
+        btn.addEventListener("click", () => switchMode(btn.dataset.mode));
+      });
+
+      // Autocomplete for Main Wordle (Daily & Unlimited)
+      setupCharacterAutocomplete(
+        "wordle-search-input",
+        "wordle-autocomplete",
+        "wordle-submit-btn",
+        () => getPoolForEdition(state.edition),
+        () => getActiveWordleContext().guessIds,
+        charId => submitWordleGuess(charId)
+      );
+
+      // Autocomplete for Guess by Quote
+      setupCharacterAutocomplete(
+        "quote-search-input",
+        "quote-autocomplete",
+        "quote-submit-btn",
+        () => getPoolForEdition(state.edition),
+        () => state.quoteGuessIds,
+        charId => submitQuoteGuess(charId)
+      );
+
+      // Autocomplete for Guess by Image
+      setupCharacterAutocomplete(
+        "image-search-input",
+        "image-autocomplete",
+        "image-submit-btn",
+        () => getPoolForEdition(state.edition),
+        () => state.imageGuessIds,
+        charId => submitImageGuess(charId)
+      );
+
+      // Unlimited New Target Button
+      document.getElementById("new-unlimited-btn").addEventListener("click", () => {
+        const pool = getPoolForEdition(state.edition);
+        const rand = pool[Math.floor(Math.random() * pool.length)];
+        state.unlimitedTargetId = rand.id;
+        state.unlimitedGuessIds = [];
+        state.unlimitedSolved = false;
+        saveState();
+        renderWordleView();
+        showToast("New random target summoned!", "info");
+      });
+
+      // Share 8-Attribute Grid Button
+      document.getElementById("share-results-btn").addEventListener("click", () => {
+        const shareStr = buildShareEmojiText();
+        copyTextToClipboard(shareStr);
+      });
+
+      // Post-victory quick jump to Unlimited mode
+      document.getElementById("victory-next-mode-btn").addEventListener("click", () => {
+        switchMode("unlimited");
+      });
+
+      // Quote Mode Controls
+      document.getElementById("quote-toggle-context-btn").addEventListener("click", () => {
+        state.quoteShowContext = !state.quoteShowContext;
+        renderQuoteView();
+      });
+      document.getElementById("quote-next-btn").addEventListener("click", pickNewQuoteChallenge);
+
+      // Image Mode Controls
+      document.getElementById("image-next-btn").addEventListener("click", pickNewImageChallenge);
+
+      // Codex Tabs & Filters
+      const tabRoster = document.getElementById("codex-tab-roster");
+      const tabQuotes = document.getElementById("codex-tab-quotes");
+
+      tabRoster.addEventListener("click", () => {
+        codexSubTab = "roster";
+        tabRoster.className = "px-4 py-2 rounded-xl bg-royalGold-500 text-obsidian-950 font-bold text-xs sm:text-sm transition";
+        tabQuotes.className = "px-4 py-2 rounded-xl bg-obsidian-800 text-slate-300 border border-obsidian-700 font-semibold text-xs sm:text-sm transition";
+        renderCodexView();
+      });
+
+      tabQuotes.addEventListener("click", () => {
+        codexSubTab = "quotes";
+        tabQuotes.className = "px-4 py-2 rounded-xl bg-royalGold-500 text-obsidian-950 font-bold text-xs sm:text-sm transition";
+        tabRoster.className = "px-4 py-2 rounded-xl bg-obsidian-800 text-slate-300 border border-obsidian-700 font-semibold text-xs sm:text-sm transition";
+        renderCodexView();
+      });
+
+      document.getElementById("codex-search-input").addEventListener("input", renderCodexView);
+      document.getElementById("codex-arc-filter").addEventListener("change", renderCodexView);
+
+      // Modals (GitHub Setup & Rules)
+      const githubModal = document.getElementById("github-modal");
+      const helpModal = document.getElementById("help-modal");
+
+      document.getElementById("open-github-modal-btn").addEventListener("click", () => githubModal.classList.remove("hidden"));
+      document.getElementById("close-github-modal-btn").addEventListener("click", () => githubModal.classList.add("hidden"));
+      githubModal.addEventListener("click", e => {
+        if (e.target === githubModal) githubModal.classList.add("hidden");
+      });
+
+      document.getElementById("open-help-modal-btn").addEventListener("click", () => helpModal.classList.remove("hidden"));
+      document.getElementById("close-help-modal-btn").addEventListener("click", () => helpModal.classList.add("hidden"));
+      helpModal.addEventListener("click", e => {
+        if (e.target === helpModal) helpModal.classList.add("hidden");
+      });
+
+      // Live Wiki Fallback Toggle
+      document.getElementById("wiki-fallback-toggle").addEventListener("change", e => {
+        useWikiFallback = e.target.checked;
+        showToast(useWikiFallback ? "Live Wiki portrait fallback enabled." : "Live Wiki fallback disabled.", "info");
+        switchMode(state.mode);
+      });
+
+      // Copy GitHub Workflow YAML
+      document.getElementById("copy-yaml-btn").addEventListener("click", () => {
+        const yamlText = document.getElementById("github-workflow-yaml").textContent;
+        copyTextToClipboard(yamlText);
+      });
+
+      // Initial render
+      if (!["daily", "unlimited", "quote", "image", "codex"].includes(state.mode)) {
+        state.mode = "daily";
+      }
+      if (["unlimited", "quote", "image"].includes(state.mode) && !isBonusUnlocked()) {
+        state.mode = "daily";
+      }
+      updateHeaderAndLocks();
+      switchMode(state.mode);
+    });
+  </script>
+</body>
+</html>
