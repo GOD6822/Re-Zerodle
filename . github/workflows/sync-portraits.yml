@@ -1,1 +1,63 @@
+name: Sync Re:Zerodle Character Portraits
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'
 
+permissions:
+  contents: write
+
+jobs:
+  sync-portraits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Fetch Portraits & Build Manifest
+        run: |
+          python - << 'EOF'
+          import json, os, re, urllib.request, urllib.parse
+
+          os.makedirs("portraits", exist_ok=True)
+          with open("index.html", "r", encoding="utf-8") as f:
+              html = f.read()
+
+          slugs = sorted(set(re.findall(r'wikiSlug:\s*"([^"]+)"', html)))
+          manifest = {}
+
+          for slug in slugs:
+              api = f"https://rezero.fandom.com/api.php?action=query&titles={urllib.parse.quote(slug)}&prop=pageimages&format=json&pithumbsize=300"
+              try:
+                  req = urllib.request.Request(api, headers={"User-Agent": "ReZerodle-Sync/1.0"})
+                  with urllib.request.urlopen(req, timeout=10) as resp:
+                      data = json.loads(resp.read().decode())
+                      pages = data.get("query", {}).get("pages", {})
+                      for page in pages.values():
+                          src = page.get("thumbnail", {}).get("source")
+                          if src:
+                              ext = ".png" if ".png" in src.lower() else ".jpg"
+                              filename = f"{slug}{ext}"
+                              filepath = os.path.join("portraits", filename)
+                              urllib.request.urlretrieve(src, filepath)
+                              manifest[slug] = f"./portraits/{filename}"
+              except Exception as e:
+                  print(f"Skipped {slug}: {e}")
+
+          with open("portraits/manifest.json", "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2)
+          print(f"Synced {len(manifest)} portraits.")
+          EOF
+
+      - name: Commit Portraits Manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add portraits/
+          git diff --staged --quiet || git commit -m "chore: sync Re:Zerodle character portraits"
+          git push
